@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css' // Your Tailwind CSS entry point
+import './menu-ui/styles/globals.css' // Figma design system
 
 // --- IMPORT YOUR GAME LOGIC ---
 // We add .js because that's what they compile to

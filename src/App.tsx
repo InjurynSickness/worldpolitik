@@ -1,8 +1,7 @@
 import React from 'react';
-import './styles/globals.css';
-import { SinglePlayerMenu } from './components/SinglePlayerMenu';
-import { LoadGameMenu } from './components/LoadGameMenu';
-import { CountrySelection } from './components/CountrySelection';
+import { SinglePlayerMenu } from './menu-ui/components/SinglePlayerMenu';
+import { LoadGameMenu } from './menu-ui/components/LoadGameMenu';
+import { CountrySelection } from './menu-ui/components/CountrySelection';
 // --- IMPORT GAME TYPES ---
 import { GameState } from './types.js';
 import { LoadingScreen } from './loadingScreen.js';
@@ -31,8 +30,8 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
 
   // --- START GAME function ---
   // This gets passed to CountrySelection
-  const onStartGame = () => {
-    console.log("Start Game clicked");
+  const onStartGame = (country: any) => {
+    console.log("Start Game clicked with country:", country);
     loadingScreen.show();
     loadingScreen.updateProgress(10, "Loading Game...");
 
@@ -67,20 +66,18 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
   const renderView = () => {
     switch (currentView) {
       case 'main':
-        return <SinglePlayerMenu onNewGame={onNewGame} onLoadGame={onLoadGame} />;
-      
+        return <SinglePlayerMenu onNewGame={onNewGame} onLoadGame={onLoadGame} onBack={() => {}} />;
+
       case 'load':
         return <LoadGameMenu onBack={onBack} onConfirmLoad={onConfirmLoad} />;
-      
+
       case 'country-select':
-        return <CountrySelection onBack={onBack} onStartGame={onStartGame} />;
-      
+        return <CountrySelection onBack={onBack} onSelectCountry={onStartGame} />;
+
       default:
-        return <SinglePlayerMenu onNewGame={onNewGame} onLoadGame={onLoadGame} />;
+        return <SinglePlayerMenu onNewGame={onNewGame} onLoadGame={onLoadGame} onBack={() => {}} />;
     }
   };
 
-  // I removed the .app-container wrapper to let your components
-  // be the top-level item, which is better for your CSS.
   return renderView();
 }
