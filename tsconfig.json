@@ -4,6 +4,7 @@
     "module": "ES2022",
     "moduleResolution": "node",
     "outDir": "./dist",
+    "jsx": "react-jsx",
     "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,

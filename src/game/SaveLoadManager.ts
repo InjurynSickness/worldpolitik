@@ -21,7 +21,8 @@ export class SaveLoadManager {
 
     public static saveGame(gameState: GameState, slotNumber: number = 1): boolean {
         try {
-            const serializableCountries = Array.from(gameState.countries.entries()).map(([id, country]) => {
+            // FIX: Added explicit return type [string, any] to the map callback
+            const serializableCountries = Array.from(gameState.countries.entries()).map(([id, country]): [string, any] => {
                 return [id, { ...country, relations: Array.from(country.relations.entries()) }];
             });
             const serializableAlliances = Array.from(gameState.alliances.entries());
