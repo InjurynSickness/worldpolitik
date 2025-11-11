@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu@1.2.5";
-import { cva } from "class-variance-authority@0.7.1";
-import { ChevronDownIcon } from "lucide-react@0.487.0";
+import * as NavigationMenuPrimitive from "@radix-ui/react-navigation-menu";
+import { cva } from "class-variance-authority";
+import { ChevronDownIcon } from "lucide-react";
 import { cn } from "./utils";
 function NavigationMenu({ className, children, viewport = true, ...props }) {
     return (_jsxs(NavigationMenuPrimitive.Root, { "data-slot": "navigation-menu", "data-viewport": viewport, className: cn("group/navigation-menu relative flex max-w-max flex-1 items-center justify-center", className), ...props, children: [children, viewport && _jsx(NavigationMenuViewport, {})] }));

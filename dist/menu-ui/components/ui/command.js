@@ -1,7 +1,7 @@
 "use client";
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { Command as CommandPrimitive } from "cmdk@1.1.1";
-import { SearchIcon } from "lucide-react@0.487.0";
+import { Command as CommandPrimitive } from "cmdk";
+import { SearchIcon } from "lucide-react";
 import { cn } from "./utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, } from "./dialog";
 function Command({ className, ...props }) {

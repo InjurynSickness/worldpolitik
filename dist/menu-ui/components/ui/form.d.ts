@@ -1,13 +1,35 @@
 import * as React from "react";
-import * as LabelPrimitive from "@radix-ui/react-label@2.1.2";
-import { Slot } from "@radix-ui/react-slot@1.1.2";
-import { type ControllerProps, type FieldPath, type FieldValues } from "react-hook-form@7.55.0";
-declare const Form: any;
-declare const FormField: <TFieldValues extends FieldValues = FieldValues, TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>>({ ...props }: ControllerProps<TFieldValues, TName>) => import("react/jsx-runtime").JSX.Element;
-declare const useFormField: () => any;
-declare function FormItem({ className, ...props }: React.ComponentProps<"div">): import("react/jsx-runtime").JSX.Element;
-declare function FormLabel({ className, ...props }: React.ComponentProps<typeof LabelPrimitive.Root>): import("react/jsx-runtime").JSX.Element;
-declare function FormControl({ ...props }: React.ComponentProps<typeof Slot>): import("react/jsx-runtime").JSX.Element;
-declare function FormDescription({ className, ...props }: React.ComponentProps<"p">): import("react/jsx-runtime").JSX.Element;
-declare function FormMessage({ className, ...props }: React.ComponentProps<"p">): import("react/jsx-runtime").JSX.Element | null;
+import * as LabelPrimitive from "@radix-ui/react-label";
+import { Slot } from "@radix-ui/react-slot";
+import { type ControllerProps, type FieldError, type FieldErrors, type FieldPath, type FieldValues, FormProvider } from "react-hook-form";
+declare function Form<TFieldValues extends FieldValues = FieldValues, TContext = any>({ ...props }: React.ComponentProps<typeof FormProvider<TFieldValues, TContext>>): import("react/jsx-runtime").JSX.Element;
+declare function FormField<TFieldValues extends FieldValues = FieldValues, TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>>({ ...props }: ControllerProps<TFieldValues, TName>): import("react/jsx-runtime").JSX.Element;
+declare function useFormField(): {
+    error: FieldError | undefined;
+    errors: FieldErrors | undefined;
+    isDirty: boolean;
+    isTouched: boolean;
+    isValidating: boolean;
+    invalid: boolean;
+    id: string;
+    name: string;
+    formItemId: string;
+    formDescriptionId: string;
+    formMessageId: string;
+};
+declare function FormItem({ className, ...props }: React.ComponentProps<"div"> & {
+    className?: string;
+}): import("react/jsx-runtime").JSX.Element;
+declare function FormLabel({ className, ...props }: React.ComponentProps<typeof LabelPrimitive.Root> & {
+    className?: string;
+}): import("react/jsx-runtime").JSX.Element;
+declare function FormControl({ ...props }: React.ComponentProps<typeof Slot> & {
+    className?: string;
+}): import("react/jsx-runtime").JSX.Element;
+declare function FormDescription({ className, ...props }: React.ComponentProps<"p"> & {
+    className?: string;
+}): import("react/jsx-runtime").JSX.Element;
+declare function FormMessage({ className, children, ...props }: React.ComponentProps<"p"> & {
+    className?: string;
+}): import("react/jsx-runtime").JSX.Element | null;
 export { useFormField, Form, FormItem, FormLabel, FormControl, FormDescription, FormMessage, FormField, };

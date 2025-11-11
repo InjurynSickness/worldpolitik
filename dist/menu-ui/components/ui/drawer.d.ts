@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Drawer as DrawerPrimitive } from "vaul@1.1.2";
+import { Drawer as DrawerPrimitive } from "vaul";
 declare function Drawer({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>): import("react/jsx-runtime").JSX.Element;
 declare function DrawerTrigger({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Trigger>): import("react/jsx-runtime").JSX.Element;
 declare function DrawerPortal({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Portal>): import("react/jsx-runtime").JSX.Element;

@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as ContextMenuPrimitive from "@radix-ui/react-context-menu@2.2.6";
+import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 declare function ContextMenu({ ...props }: React.ComponentProps<typeof ContextMenuPrimitive.Root>): import("react/jsx-runtime").JSX.Element;
 declare function ContextMenuTrigger({ ...props }: React.ComponentProps<typeof ContextMenuPrimitive.Trigger>): import("react/jsx-runtime").JSX.Element;
 declare function ContextMenuGroup({ ...props }: React.ComponentProps<typeof ContextMenuPrimitive.Group>): import("react/jsx-runtime").JSX.Element;

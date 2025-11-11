@@ -1,6 +1,6 @@
 "use client";
 import { jsx as _jsx } from "react/jsx-runtime";
-import * as CollapsiblePrimitive from "@radix-ui/react-collapsible@1.1.3";
+import * as CollapsiblePrimitive from "@radix-ui/react-collapsible";
 function Collapsible({ ...props }) {
     return _jsx(CollapsiblePrimitive.Root, { "data-slot": "collapsible", ...props });
 }

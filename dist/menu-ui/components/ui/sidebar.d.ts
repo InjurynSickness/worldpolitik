@@ -1,5 +1,5 @@
 import * as React from "react";
-import { VariantProps } from "class-variance-authority@0.7.1";
+import { VariantProps } from "class-variance-authority";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Separator } from "./separator";
@@ -42,7 +42,10 @@ declare function SidebarGroupAction({ className, asChild, ...props }: React.Comp
 declare function SidebarGroupContent({ className, ...props }: React.ComponentProps<"div">): import("react/jsx-runtime").JSX.Element;
 declare function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">): import("react/jsx-runtime").JSX.Element;
 declare function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">): import("react/jsx-runtime").JSX.Element;
-declare const sidebarMenuButtonVariants: any;
+declare const sidebarMenuButtonVariants: (props?: ({
+    variant?: "default" | "outline" | null | undefined;
+    size?: "default" | "sm" | "lg" | null | undefined;
+} & import("class-variance-authority/dist/types").ClassProp) | undefined) => string;
 declare function SidebarMenuButton({ asChild, isActive, variant, size, tooltip, className, ...props }: React.ComponentProps<"button"> & {
     asChild?: boolean;
     isActive?: boolean;

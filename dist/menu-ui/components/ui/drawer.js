@@ -1,6 +1,6 @@
 "use client";
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { Drawer as DrawerPrimitive } from "vaul@1.1.2";
+import { Drawer as DrawerPrimitive } from "vaul";
 import { cn } from "./utils";
 function Drawer({ ...props }) {
     return _jsx(DrawerPrimitive.Root, { "data-slot": "drawer", ...props });

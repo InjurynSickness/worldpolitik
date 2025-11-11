@@ -1,5 +1,5 @@
 import * as React from "react";
-import { OTPInput } from "input-otp@1.4.2";
+import { OTPInput } from "input-otp";
 declare function InputOTP({ className, containerClassName, ...props }: React.ComponentProps<typeof OTPInput> & {
     containerClassName?: string;
 }): import("react/jsx-runtime").JSX.Element;

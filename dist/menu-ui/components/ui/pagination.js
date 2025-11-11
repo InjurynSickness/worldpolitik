@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon, } from "lucide-react@0.487.0";
+import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon, } from "lucide-react";
 import { cn } from "./utils";
 import { buttonVariants } from "./button";
 function Pagination({ className, ...props }) {

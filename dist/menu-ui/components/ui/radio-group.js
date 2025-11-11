@@ -1,7 +1,7 @@
 "use client";
 import { jsx as _jsx } from "react/jsx-runtime";
-import * as RadioGroupPrimitive from "@radix-ui/react-radio-group@1.2.3";
-import { CircleIcon } from "lucide-react@0.487.0";
+import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
+import { CircleIcon } from "lucide-react";
 import { cn } from "./utils";
 function RadioGroup({ className, ...props }) {
     return (_jsx(RadioGroupPrimitive.Root, { "data-slot": "radio-group", className: cn("grid gap-3", className), ...props }));

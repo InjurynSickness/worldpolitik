@@ -1,7 +1,7 @@
 "use client";
 import { jsx as _jsx } from "react/jsx-runtime";
-import { GripVerticalIcon } from "lucide-react@0.487.0";
-import * as ResizablePrimitive from "react-resizable-panels@2.1.7";
+import { GripVerticalIcon } from "lucide-react";
+import * as ResizablePrimitive from "react-resizable-panels";
 import { cn } from "./utils";
 function ResizablePanelGroup({ className, ...props }) {
     return (_jsx(ResizablePrimitive.PanelGroup, { "data-slot": "resizable-panel-group", className: cn("flex h-full w-full data-[panel-group-direction=vertical]:flex-col", className), ...props }));

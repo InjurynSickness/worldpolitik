@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as RechartsPrimitive from "recharts@2.15.2";
+import * as RechartsPrimitive from "recharts";
 declare const THEMES: {
     readonly light: "";
     readonly dark: ".dark";
@@ -24,7 +24,7 @@ declare const ChartStyle: ({ id, config }: {
     id: string;
     config: ChartConfig;
 }) => import("react/jsx-runtime").JSX.Element | null;
-declare const ChartTooltip: any;
+declare const ChartTooltip: typeof RechartsPrimitive.Tooltip;
 declare function ChartTooltipContent({ active, payload, className, indicator, hideLabel, hideIndicator, label, labelFormatter, labelClassName, formatter, color, nameKey, labelKey, }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> & React.ComponentProps<"div"> & {
     hideLabel?: boolean;
     hideIndicator?: boolean;
@@ -32,7 +32,7 @@ declare function ChartTooltipContent({ active, payload, className, indicator, hi
     nameKey?: string;
     labelKey?: string;
 }): import("react/jsx-runtime").JSX.Element | null;
-declare const ChartLegend: any;
+declare const ChartLegend: typeof RechartsPrimitive.Legend;
 declare function ChartLegendContent({ className, hideIcon, payload, verticalAlign, nameKey, }: React.ComponentProps<"div"> & Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
     hideIcon?: boolean;
     nameKey?: string;
