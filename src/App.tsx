@@ -1,27 +1,22 @@
 import React from 'react';
 import './styles/globals.css';
-// --- THIS IS THE FIX ---
-// Changed import from MainMenu to SinglePlayerMenu
 import { SinglePlayerMenu } from './components/SinglePlayerMenu';
-// --- END FIX ---
 import { LoadGameMenu } from './components/LoadGameMenu';
 import { CountrySelection } from './components/CountrySelection';
-import { GameState } from '../types.js';
-import { LoadingScreen } from '../loadingScreen.js';
+// --- IMPORT GAME TYPES ---
+import { GameState } from './types.js';
+import { LoadingScreen } from './loadingScreen.js';
 
-// 1. Define the props interface
+// --- Define the props App will receive from main.tsx ---
 interface AppProps {
   initializeGame: () => GameState;
   loadingScreen: LoadingScreen;
 }
 
-// 2. Accept the props
-// We accept initializeGame and loadingScreen here,
-// so we can pass them down to the final "Start Game" button.
+// --- App component ---
 export default function App({ initializeGame, loadingScreen }: AppProps) {
   const [currentView, setCurrentView] = React.useState('main');
 
-  // This is your original logic: switch views
   const onNewGame = () => {
     setCurrentView('country-select');
   };
@@ -34,54 +29,50 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
     setCurrentView('main');
   };
 
-  // This is the function we'll pass to the CountrySelection component
+  // --- START GAME function ---
+  // This gets passed to CountrySelection
   const onStartGame = () => {
-    console.log("Start Game clicked from React UI");
+    console.log("Start Game clicked");
     loadingScreen.show();
     loadingScreen.updateProgress(10, "Loading Game...");
 
     setTimeout(() => {
-        initializeGame(); // This creates window.gameEngine
+        initializeGame(); // Creates window.gameEngine
         loadingScreen.updateProgress(100, "Done");
         loadingScreen.hide();
-
-        // Hide the React UI so the game canvas can be seen
+        // Hide React UI
         const root = document.getElementById('root');
         if (root) (root as HTMLElement).style.display = 'none';
     }, 50);
   };
 
-  // This is the function we'll pass to the LoadGameMenu component
+  // --- LOAD GAME function ---
+  // This gets passed to LoadGameMenu
   const onConfirmLoad = () => {
-     console.log("Load Game confirmed from React UI");
+     console.log("Load Game confirmed");
      loadingScreen.show();
      loadingScreen.updateProgress(10, "Initializing...");
 
      setTimeout(() => {
-         initializeGame(); // This creates window.gameEngine
+         initializeGame(); // Creates window.gameEngine
          (window as any).gameEngine?.showLoadDialog();
          loadingScreen.hide();
-         
+         // Hide React UI
          const root = document.getElementById('root');
          if (root) (root as HTMLElement).style.display = 'none';
      }, 50);
   };
 
+  // --- Render the correct menu ---
   const renderView = () => {
     switch (currentView) {
       case 'main':
-        // Use the correct component: SinglePlayerMenu
-        // (I'm assuming it takes these props, based on your original file)
         return <SinglePlayerMenu onNewGame={onNewGame} onLoadGame={onLoadGame} />;
       
       case 'load':
-        // Pass the onBack and onConfirmLoad functions
-        // (I'm assuming your component accepts an 'onConfirmLoad' prop)
         return <LoadGameMenu onBack={onBack} onConfirmLoad={onConfirmLoad} />;
       
       case 'country-select':
-        // Pass the onBack and onStartGame functions
-        // (I'm assuming your component accepts an 'onStartGame' prop)
         return <CountrySelection onBack={onBack} onStartGame={onStartGame} />;
       
       default:
@@ -89,5 +80,7 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
     }
   };
 
-  return <div className="app-container">{renderView()}</div>;
+  // I removed the .app-container wrapper to let your components
+  // be the top-level item, which is better for your CSS.
+  return renderView();
 }
