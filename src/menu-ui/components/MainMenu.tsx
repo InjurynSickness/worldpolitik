@@ -11,7 +11,7 @@ interface MainMenuProps {
 export function MainMenu({ onSinglePlayer, onInstructions, onOptions, onCredits, onQuit }: MainMenuProps) {
   return (
     <div className="relative w-full h-screen flex items-center justify-center bg-cover bg-center"
-         style={{ backgroundImage: "url('/terrain.png')" }}>
+         style={{ backgroundImage: "url('/background.png')" }}>
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/60" />
 
