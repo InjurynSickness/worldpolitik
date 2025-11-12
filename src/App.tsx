@@ -21,7 +21,21 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
   };
 
   const onNewGame = () => {
-    setCurrentView('country-select');
+    // Show loading screen first, THEN show the interactive map
+    loadingScreen.show();
+    loadingScreen.updateProgress(0, "Loading world map...");
+
+    setTimeout(() => loadingScreen.updateProgress(30, "Loading terrain..."), 100);
+    setTimeout(() => loadingScreen.updateProgress(60, "Loading countries..."), 400);
+    setTimeout(() => loadingScreen.updateProgress(90, "Preparing map..."), 800);
+
+    setTimeout(() => {
+      loadingScreen.updateProgress(100, "Ready!");
+      setTimeout(() => {
+        loadingScreen.hide();
+        setCurrentView('country-select');
+      }, 300);
+    }, 1200);
   };
 
   const onLoadGame = () => {

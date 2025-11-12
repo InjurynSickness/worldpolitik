@@ -17,41 +17,42 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry }: Interac
   useEffect(() => {
     if (!containerRef.current) return;
 
+    let provinceMapInstance: any = null;
+
     // Import the map dynamically
     import('../../provinceMap.js').then(({ ProvinceMap }) => {
-      const provinceMap = new ProvinceMap(
+      // When user clicks a province/country on the map
+      const handleCountryClick = (countryId: string) => {
+        console.log('Country clicked:', countryId);
+        setSelectedCountryId(countryId);
+      };
+
+      // When map is fully ready (including borders)
+      const handleMapReady = () => {
+        console.log('Country selection map fully ready with borders');
+        setMapReady(true);
+      };
+
+      provinceMapInstance = new ProvinceMap(
         containerRef.current!,
-        (countryId: string) => {
-          // When user clicks a province, select its owner country
-          const province = Array.from(provinceToCountryMap.entries()).find(
-            ([_, country]) => country === countryId
-          );
-          if (province) {
-            setSelectedCountryId(countryId);
-          }
-        },
-        () => {
-          // Map ready callback
-          console.log('Country selection map ready');
-          setMapReady(true);
-        }
+        handleCountryClick,
+        handleMapReady
       );
 
       // Set up the map with country data
-      const gameStateModule = import('../../game/GameStateInitializer.js');
-      gameStateModule.then(({ GameStateInitializer }) => {
+      import('../../game/GameStateInitializer.js').then(({ GameStateInitializer }) => {
         const tempGameState = GameStateInitializer.initializeGameState();
-        provinceMap.updateCountries(tempGameState.countries, countryData);
-        provinceMap.setProvinceOwnerMap(provinceToCountryMap);
+        provinceMapInstance.updateCountries(tempGameState.countries, countryData);
+        provinceMapInstance.setProvinceOwnerMap(provinceToCountryMap);
       });
-
-      // Cleanup on unmount
-      return () => {
-        if (provinceMap) {
-          provinceMap.destroy();
-        }
-      };
     });
+
+    // Cleanup on unmount
+    return () => {
+      if (provinceMapInstance) {
+        provinceMapInstance.destroy();
+      }
+    };
   }, []);
 
   const selectedCountryData = selectedCountryId ? countryData.get(selectedCountryId) : null;
@@ -92,14 +93,36 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry }: Interac
 
           {/* Country details */}
           <div className="p-6 space-y-4">
-            {/* Flag placeholder */}
-            <div className="w-full h-24 bg-gradient-to-br from-stone-800 to-stone-900 border border-amber-900/60 flex items-center justify-center">
-              <div style={{
-                width: '100%',
-                height: '100%',
-                backgroundColor: selectedCountryData.color,
-                opacity: 0.8
-              }} />
+            {/* Leader Portrait and Flag */}
+            <div className="flex gap-3">
+              {/* Leader Portrait placeholder */}
+              <div className="w-28 h-36 bg-gradient-to-b from-stone-800 to-stone-900 border-2 border-amber-900/60 flex items-center justify-center relative">
+                <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-amber-700" />
+                <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-amber-700" />
+                <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-amber-700" />
+                <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-amber-700" />
+                <span className="text-amber-700/40 text-[40px]">👤</span>
+              </div>
+
+              {/* Flag and basic info */}
+              <div className="flex-1 space-y-2">
+                {/* Flag placeholder */}
+                <div className="w-full h-20 bg-gradient-to-br from-stone-800 to-stone-900 border border-amber-900/60 flex items-center justify-center relative overflow-hidden">
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: selectedCountryData.color,
+                    opacity: 0.6
+                  }} />
+                  <span className="absolute text-white/20 text-[10px] tracking-widest">FLAG</span>
+                </div>
+
+                {/* Quick stats */}
+                <div className="text-[10px] text-amber-100/60 space-y-1">
+                  <div>Leader: <span className="text-amber-100">Unknown</span></div>
+                  <div>Ideology: <span className="text-amber-100">{selectedCountryData.government || 'Unknown'}</span></div>
+                </div>
+              </div>
             </div>
 
             {/* Stats */}

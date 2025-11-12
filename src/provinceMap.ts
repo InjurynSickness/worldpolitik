@@ -115,17 +115,17 @@ export class ProvinceMap {
                 this.render();
                 console.log("Map rendered for the first time.");
 
-                // Notify that map is ready
-                if (this.onMapReady) {
-                    this.onMapReady();
-                }
-
                 // Build borders asynchronously in the background (non-blocking)
                 setTimeout(() => {
                     console.log("Building borders in background...");
                     this.buildBorderMap();
                     this.render();
                     console.log("Borders complete and rendered.");
+
+                    // Notify that map is FULLY ready (including borders)
+                    if (this.onMapReady) {
+                        this.onMapReady();
+                    }
                 }, 100);
             }
         };
