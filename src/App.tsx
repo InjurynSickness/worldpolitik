@@ -5,12 +5,11 @@ import { LoadGameMenu } from './menu-ui/components/LoadGameMenu';
 import { CountrySelection } from './menu-ui/components/CountrySelection';
 import { MapSelection } from './menu-ui/components/MapSelection';
 // --- IMPORT GAME TYPES ---
-import { GameState } from './types.js';
 import { LoadingScreen } from './loadingScreen.js';
 
 // --- Define the props App will receive from main.tsx ---
 interface AppProps {
-  initializeGame: () => GameState;
+  initializeGame: () => void;
   loadingScreen: LoadingScreen;
 }
 

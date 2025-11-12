@@ -6,17 +6,16 @@ import './menu-ui/styles/globals.css' // Figma design system
 
 // --- IMPORT YOUR GAME LOGIC ---
 // We add .js because that's what they compile to
-import { GameStateInitializer } from './game/GameStateInitializer.js';
+import { initializeFullGame } from './gameInit.js';
 import { LoadingScreen } from './loadingScreen.js';
-import { GameState } from './types.js';
 
 // --- CREATE GAME FUNCTIONS ---
 // This creates the loading screen and attaches it to the body
 const loadingScreen = new LoadingScreen(document.body);
 
 // This creates a function that can initialize the game
-const initializeGame = (): GameState => {
-    return GameStateInitializer.initializeGameState();
+const initializeGame = (): void => {
+    initializeFullGame();
 };
 
 // --- RENDER THE APP ---
