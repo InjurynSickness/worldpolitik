@@ -48,6 +48,9 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
       return;
     }
 
+    // Store the selected country ID so we can set it after initialization
+    const selectedCountryId = country.id;
+
     // Show loading screen with progress
     loadingScreen.show();
     loadingScreen.updateProgress(0, "Initializing game...");
@@ -66,6 +69,19 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
           // Set up callback for when map is ready
           (window as any).onMapReady = () => {
             console.log("Map ready - hiding loading screen");
+
+            // Set the player's selected country
+            if ((window as any).gameEngine) {
+              const gameState = (window as any).gameEngine.getGameState();
+              gameState.selectedCountryId = selectedCountryId;
+              console.log("Player is now playing as:", selectedCountryId);
+
+              // Update UI to show the selected country's info
+              if ((window as any).uiManager) {
+                (window as any).uiManager.updateCountryInfo();
+              }
+            }
+
             loadingScreen.updateProgress(100, "Done!");
 
             setTimeout(() => {

@@ -146,9 +146,10 @@ export function initializeFullGame(): void {
         uiManager.updatePauseButton(gameState.isPaused);
         uiManager.updateSpeedButtons(gameState.gameSpeed);
 
-        // 12. Expose game engine globally for debugging and save/load
+        // 12. Expose game engine, province map, and UI manager globally
         (window as any).gameEngine = gameEngine;
         (window as any).provinceMap = provinceMap;
+        (window as any).uiManager = uiManager;
 
         console.log('Game initialization complete! Map will render when assets are loaded.');
     } catch (error) {

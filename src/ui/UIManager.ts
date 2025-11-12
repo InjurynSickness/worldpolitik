@@ -145,54 +145,41 @@ export class UIManager {
             const data = countryData.get(countryId);
             countryInfoDiv.innerHTML = `
                 <h2>${data ? data.name : 'Unknown Nation'}</h2>
-                <p style="color: #888;">Province ID: ${provId || 'None'}</p>
-                <p style="color: #888;">This is not a major playable nation.</p>
+                <p style="color: #888;">No data available for this country.</p>
             `;
             return;
         }
 
-        const isMajor = (country.gdp > 0);
-
-        if (!isMajor) {
-            countryInfoDiv.innerHTML = `
-                <h2>${country.name}</h2>
-                <p style="color: #888;">Province ID: ${provId || 'None'}</p>
-                <p style="color: #888;">This is not a major playable nation.</p>
-                
-                <h3>Politics</h3>
-                <div class="stat-row">
-                    <span class="stat-label">Government:</span>
-                    <span class="stat-value">${this.formatGovernmentType(country.government)}</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Political Power:</span>
-                    <span class="stat-value">${country.politicalPower.toFixed(1)}</span>
-                </div>
-            `;
-            return;
-        }
-
-        const alliance = country.alliances.length > 0 
+        // Show info for ALL countries (not just majors)
+        const alliance = country.alliances.length > 0
             ? gameState.alliances.get(country.alliances[0])?.name || 'None'
             : 'None';
 
+        // Show different sections based on what data is available
+        let economySection = '';
+        if (country.gdp > 0 || country.population > 0) {
+            economySection = `
+                <h3>Economy</h3>
+                ${country.gdp > 0 ? `<div class="stat-row">
+                    <span class="stat-label">GDP:</span>
+                    <span class="stat-value">$${country.gdp.toFixed(1)}T</span>
+                </div>` : ''}
+                ${country.gdpPerCapita > 0 ? `<div class="stat-row">
+                    <span class="stat-label">GDP per Capita:</span>
+                    <span class="stat-value">$${country.gdpPerCapita.toLocaleString()}</span>
+                </div>` : ''}
+                ${country.population > 0 ? `<div class="stat-row">
+                    <span class="stat-label">Population:</span>
+                    <span class="stat-value">${country.population.toFixed(1)}M</span>
+                </div>` : ''}
+            `;
+        }
+
         countryInfoDiv.innerHTML = `
             <h2>${country.name}</h2>
-            <p style="font-size: 12px; color: #888; margin-top: -10px;">Province: ${provId || 'N/A'}</p>
-            
-            <h3>Economy</h3>
-            <div class="stat-row">
-                <span class="stat-label">GDP:</span>
-                <span class="stat-value">$${country.gdp.toFixed(1)}T</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">GDP per Capita:</span>
-                <span class="stat-value">$${country.gdpPerCapita.toLocaleString()}</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">Population:</span>
-                <span class="stat-value">${country.population.toFixed(1)}M</span>
-            </div>
+            <p style="font-size: 11px; color: #d4af37; margin-top: -10px; font-weight: bold;">YOUR NATION</p>
+
+            ${economySection}
 
             <h3>Politics</h3>
             <div class="stat-row">
@@ -207,6 +194,20 @@ export class UIManager {
                 <span class="stat-label">Stability:</span>
                 <span class="stat-value">${Math.round(country.stability)}%</span>
             </div>
+            ${alliance !== 'None' ? `<div class="stat-row">
+                <span class="stat-label">Alliance:</span>
+                <span class="stat-value">${alliance}</span>
+            </div>` : ''}
+
+            <h3>Military</h3>
+            <div class="stat-row">
+                <span class="stat-label">Strength:</span>
+                <span class="stat-value">${country.militaryStrength}</span>
+            </div>
+            ${country.militarySpending > 0 ? `<div class="stat-row">
+                <span class="stat-label">Spending:</span>
+                <span class="stat-value">$${country.militarySpending.toFixed(1)}B</span>
+            </div>` : ''}
         `;
     }
 
