@@ -6,9 +6,10 @@ import { countryData } from "../../countryData.js";
 interface InteractiveCountrySelectionProps {
   onBack: () => void;
   onSelectCountry: (countryId: string) => void;
+  onMapReady: () => void;
 }
 
-export function InteractiveCountrySelection({ onBack, onSelectCountry }: InteractiveCountrySelectionProps) {
+export function InteractiveCountrySelection({ onBack, onSelectCountry, onMapReady }: InteractiveCountrySelectionProps) {
   const [selectedCountryId, setSelectedCountryId] = useState<string | null>(null);
   const [hoveredCountryId, setHoveredCountryId] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -31,6 +32,8 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry }: Interac
       const handleMapReady = () => {
         console.log('Country selection map fully ready with borders');
         setMapReady(true);
+        // Notify parent that map is ready (this will hide the loading screen)
+        onMapReady();
       };
 
       provinceMapInstance = new ProvinceMap(

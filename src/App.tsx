@@ -21,21 +21,29 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
   };
 
   const onNewGame = () => {
-    // Show loading screen first, THEN show the interactive map
+    // Show loading screen AND the interactive map immediately
+    // The map will notify us when it's ready via onCountrySelectionMapReady
     loadingScreen.show();
     loadingScreen.updateProgress(0, "Loading world map...");
 
-    setTimeout(() => loadingScreen.updateProgress(30, "Loading terrain..."), 100);
-    setTimeout(() => loadingScreen.updateProgress(60, "Loading countries..."), 400);
-    setTimeout(() => loadingScreen.updateProgress(90, "Preparing map..."), 800);
+    // Show realistic progress updates while assets load
+    setTimeout(() => loadingScreen.updateProgress(20, "Loading terrain..."), 200);
+    setTimeout(() => loadingScreen.updateProgress(40, "Loading provinces..."), 500);
+    setTimeout(() => loadingScreen.updateProgress(60, "Loading rivers..."), 800);
+    setTimeout(() => loadingScreen.updateProgress(75, "Building political map..."), 1200);
+    setTimeout(() => loadingScreen.updateProgress(85, "Drawing borders..."), 1800);
+    setTimeout(() => loadingScreen.updateProgress(95, "Finalizing..."), 2500);
 
+    setCurrentView('country-select');
+  };
+
+  // Called when the InteractiveCountrySelection map is fully loaded
+  const onCountrySelectionMapReady = () => {
+    console.log("Country selection map is fully ready");
+    loadingScreen.updateProgress(100, "Ready!");
     setTimeout(() => {
-      loadingScreen.updateProgress(100, "Ready!");
-      setTimeout(() => {
-        loadingScreen.hide();
-        setCurrentView('country-select');
-      }, 300);
-    }, 1200);
+      loadingScreen.hide();
+    }, 300);
   };
 
   const onLoadGame = () => {
@@ -169,7 +177,7 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
         return <LoadGameMenu onBack={onBackToSinglePlayer} onConfirmLoad={onConfirmLoad} />;
 
       case 'country-select':
-        return <InteractiveCountrySelection onBack={onBackToSinglePlayer} onSelectCountry={onStartGame} />;
+        return <InteractiveCountrySelection onBack={onBackToSinglePlayer} onSelectCountry={onStartGame} onMapReady={onCountrySelectionMapReady} />;
 
       default:
         return (
