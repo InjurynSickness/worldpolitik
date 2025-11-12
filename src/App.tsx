@@ -2,8 +2,7 @@ import React from 'react';
 import { MainMenu } from './menu-ui/components/MainMenu';
 import { SinglePlayerMenu } from './menu-ui/components/SinglePlayerMenu';
 import { LoadGameMenu } from './menu-ui/components/LoadGameMenu';
-import { CountrySelection } from './menu-ui/components/CountrySelection';
-import { MapSelection } from './menu-ui/components/MapSelection';
+import { InteractiveCountrySelection } from './menu-ui/components/InteractiveCountrySelection';
 // --- IMPORT GAME TYPES ---
 import { LoadingScreen } from './loadingScreen.js';
 
@@ -38,18 +37,12 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
   };
 
   // --- START GAME function ---
-  // This gets passed to CountrySelection
-  const onStartGame = (country: any) => {
-    console.log("Start Game clicked with country:", country);
-
-    // Check if "Other Countries" was selected - go to map view instead
-    if (country.id === 'other') {
-      setCurrentView('map-select');
-      return;
-    }
+  // This gets passed to InteractiveCountrySelection
+  const onStartGame = (countryId: string) => {
+    console.log("Start Game clicked with country ID:", countryId);
 
     // Store the selected country ID so we can set it after initialization
-    const selectedCountryId = country.id;
+    const selectedCountryId = countryId;
 
     // Show loading screen with progress
     loadingScreen.show();
@@ -162,13 +155,7 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
         return <LoadGameMenu onBack={onBackToSinglePlayer} onConfirmLoad={onConfirmLoad} />;
 
       case 'country-select':
-        return <CountrySelection onBack={onBackToSinglePlayer} onSelectCountry={onStartGame} />;
-
-      case 'map-select':
-        return <MapSelection onBack={onBackToSinglePlayer} onSelectCountry={(countryId) => {
-          // When a country is selected from the map, start the game
-          onStartGame({ id: countryId, name: countryId });
-        }} />;
+        return <InteractiveCountrySelection onBack={onBackToSinglePlayer} onSelectCountry={onStartGame} />;
 
       default:
         return (
