@@ -60,15 +60,23 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
     setTimeout(() => loadingScreen.updateProgress(95, "Almost ready..."), 1200);
 
     setTimeout(() => {
-        initializeGame(); // Creates window.gameEngine
-        loadingScreen.updateProgress(100, "Done!");
+        try {
+          console.log("Calling initializeGame()...");
+          initializeGame(); // Creates window.gameEngine
+          console.log("initializeGame() completed successfully");
+          loadingScreen.updateProgress(100, "Done!");
 
-        setTimeout(() => {
+          setTimeout(() => {
+            loadingScreen.hide();
+            // Hide React UI
+            const root = document.getElementById('root');
+            if (root) (root as HTMLElement).style.display = 'none';
+          }, 300);
+        } catch (error) {
+          console.error("Error initializing game:", error);
           loadingScreen.hide();
-          // Hide React UI
-          const root = document.getElementById('root');
-          if (root) (root as HTMLElement).style.display = 'none';
-        }, 300);
+          alert("Failed to initialize game. Check console for details.\n\n" + error);
+        }
     }, 1500);
   };
 

@@ -7,11 +7,12 @@ import { UIManager } from './ui/UIManager.js';
 import { SaveLoadManager } from './game/SaveLoadManager.js';
 
 export function initializeFullGame(): void {
-    console.log('Initializing full game...');
+    try {
+        console.log('Initializing full game...');
 
-    // 1. Initialize game state
-    const gameState = GameStateInitializer.initializeGameState();
-    console.log('Game state initialized');
+        // 1. Initialize game state
+        const gameState = GameStateInitializer.initializeGameState();
+        console.log('Game state initialized');
 
     // 2. Create game engine
     const gameEngine = new GameEngine(gameState);
@@ -132,10 +133,15 @@ export function initializeFullGame(): void {
     uiManager.updatePauseButton(gameState.isPaused);
     uiManager.updateSpeedButtons(gameState.gameSpeed);
 
-    // 11. Expose game engine globally for debugging and save/load
-    (window as any).gameEngine = gameEngine;
+        // 11. Expose game engine globally for debugging and save/load
+        (window as any).gameEngine = gameEngine;
 
-    console.log('Game initialization complete!');
+        console.log('Game initialization complete!');
+    } catch (error) {
+        console.error('FATAL ERROR in initializeFullGame:', error);
+        console.error('Error stack:', (error as Error).stack);
+        throw error; // Re-throw so the caller can handle it
+    }
 }
 
 function createGameUI(): void {
