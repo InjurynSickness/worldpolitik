@@ -52,14 +52,12 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
   // Called when the InteractiveCountrySelection map is fully loaded
   const onCountrySelectionMapReady = () => {
     console.log("Country selection map is fully ready");
-    // Only set to 100% if we're past 92% (don't interrupt the smooth animation too early)
+    // Jump to 100% immediately when map is ready
+    setLoadingProgress(100);
+    setLoadingMessage("READY!");
     setTimeout(() => {
-      setLoadingProgress(100);
-      setLoadingMessage("READY!");
-      setTimeout(() => {
-        setShowFigmaLoading(false);
-      }, 500); // Show "READY!" for half a second
-    }, 4500); // Wait for smooth progress to reach 92% before jumping to 100%
+      setShowFigmaLoading(false);
+    }, 300);
   };
 
   const onLoadGame = () => {
