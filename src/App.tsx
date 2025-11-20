@@ -31,16 +31,13 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
     setShowFigmaLoading(true);
     setLoadingProgress(0);
     setLoadingMessage("LOADING WORLD MAP");
-
-    // Show realistic progress updates while assets load
-    setTimeout(() => { setLoadingProgress(20); setLoadingMessage("LOADING TERRAIN"); }, 200);
-    setTimeout(() => { setLoadingProgress(40); setLoadingMessage("LOADING PROVINCES"); }, 500);
-    setTimeout(() => { setLoadingProgress(60); setLoadingMessage("LOADING RIVERS"); }, 800);
-    setTimeout(() => { setLoadingProgress(75); setLoadingMessage("BUILDING POLITICAL MAP"); }, 1200);
-    setTimeout(() => { setLoadingProgress(85); setLoadingMessage("DRAWING BORDERS"); }, 1800);
-    setTimeout(() => { setLoadingProgress(95); setLoadingMessage("FINALIZING"); }, 2500);
-
     setCurrentView('country-select');
+  };
+
+  // Called by InteractiveCountrySelection to update loading progress
+  const onMapLoadingProgress = (progress: number, message: string) => {
+    setLoadingProgress(progress);
+    setLoadingMessage(message);
   };
 
   // Called when the InteractiveCountrySelection map is fully loaded
@@ -212,7 +209,7 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
         );
 
       case 'country-select':
-        return <InteractiveCountrySelection onBack={onBackToSinglePlayer} onSelectCountry={onStartGame} onMapReady={onCountrySelectionMapReady} />;
+        return <InteractiveCountrySelection onBack={onBackToSinglePlayer} onSelectCountry={onStartGame} onMapReady={onCountrySelectionMapReady} onLoadingProgress={onMapLoadingProgress} />;
 
       default:
         return (
