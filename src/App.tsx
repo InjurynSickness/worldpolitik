@@ -2,6 +2,7 @@ import React from 'react';
 import { MainMenu } from './menu-ui/components/MainMenu';
 import { SinglePlayerMenu } from './menu-ui/components/SinglePlayerMenu';
 import { LoadGameMenu } from './menu-ui/components/LoadGameMenu';
+import { CountrySelection } from './menu-ui/components/CountrySelection';
 import { InteractiveCountrySelection } from './menu-ui/components/InteractiveCountrySelection';
 import { ImageWithFallback } from './menu-ui/components/figma/ImageWithFallback';
 import { FigmaLoadingScreen } from './menu-ui/components/FigmaLoadingScreen';
@@ -26,21 +27,31 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
   };
 
   const onNewGame = () => {
-    // Show Figma loading screen AND the interactive map immediately
-    // The map will notify us when it's ready via onCountrySelectionMapReady
-    setShowFigmaLoading(true);
-    setLoadingProgress(0);
-    setLoadingMessage("LOADING SPRITES");
-    setCurrentView('country-select');
+    // Show portrait selection screen (8 major nations)
+    setCurrentView('portrait-select');
+  };
 
-    // Smooth progress updates for nice visual experience
-    setTimeout(() => { setLoadingProgress(15); setLoadingMessage("INITIALIZING MAP"); }, 300);
-    setTimeout(() => { setLoadingProgress(30); setLoadingMessage("LOADING NATIONS"); }, 700);
-    setTimeout(() => { setLoadingProgress(45); setLoadingMessage("PREPARING RESOURCES"); }, 1200);
-    setTimeout(() => { setLoadingProgress(60); setLoadingMessage("LOADING DIVISIONS"); }, 1800);
-    setTimeout(() => { setLoadingProgress(75); setLoadingMessage("LOADING WORLD"); }, 2500);
-    setTimeout(() => { setLoadingProgress(85); setLoadingMessage("SETTING UP WORLD"); }, 3200);
-    setTimeout(() => { setLoadingProgress(92); setLoadingMessage("FINALIZING"); }, 4000);
+  // Called when user selects a country from the portrait screen
+  const onSelectFromPortraits = (country: any) => {
+    if (country.id === 'other') {
+      // User wants to select from all 192 countries - show interactive map
+      setShowFigmaLoading(true);
+      setLoadingProgress(0);
+      setLoadingMessage("LOADING SPRITES");
+      setCurrentView('country-select');
+
+      // Smooth progress updates for nice visual experience
+      setTimeout(() => { setLoadingProgress(15); setLoadingMessage("INITIALIZING MAP"); }, 300);
+      setTimeout(() => { setLoadingProgress(30); setLoadingMessage("LOADING NATIONS"); }, 700);
+      setTimeout(() => { setLoadingProgress(45); setLoadingMessage("PREPARING RESOURCES"); }, 1200);
+      setTimeout(() => { setLoadingProgress(60); setLoadingMessage("LOADING DIVISIONS"); }, 1800);
+      setTimeout(() => { setLoadingProgress(75); setLoadingMessage("LOADING WORLD"); }, 2500);
+      setTimeout(() => { setLoadingProgress(85); setLoadingMessage("SETTING UP WORLD"); }, 3200);
+      setTimeout(() => { setLoadingProgress(92); setLoadingMessage("FINALIZING"); }, 4000);
+    } else {
+      // User selected a major nation - start game directly
+      onStartGame(country.id);
+    }
   };
 
   // Called by InteractiveCountrySelection to update loading progress
@@ -214,6 +225,23 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
             </div>
             <div className="relative z-10">
               <LoadGameMenu onBack={onBackToSinglePlayer} onConfirmLoad={onConfirmLoad} />
+            </div>
+          </div>
+        );
+
+      case 'portrait-select':
+        return (
+          <div className="relative w-full h-screen overflow-hidden bg-black">
+            <div className="absolute inset-0">
+              <ImageWithFallback
+                src="/background.png"
+                alt="Background"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/40" />
+            </div>
+            <div className="relative z-10">
+              <CountrySelection onBack={onBackToSinglePlayer} onSelectCountry={onSelectFromPortraits} />
             </div>
           </div>
         );
