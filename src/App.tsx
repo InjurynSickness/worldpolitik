@@ -3,6 +3,7 @@ import { MainMenu } from './menu-ui/components/MainMenu';
 import { SinglePlayerMenu } from './menu-ui/components/SinglePlayerMenu';
 import { LoadGameMenu } from './menu-ui/components/LoadGameMenu';
 import { InteractiveCountrySelection } from './menu-ui/components/InteractiveCountrySelection';
+import { ImageWithFallback } from './menu-ui/components/figma/ImageWithFallback';
 // --- IMPORT GAME TYPES ---
 import { LoadingScreen } from './loadingScreen.js';
 
@@ -171,10 +172,38 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
         );
 
       case 'single-player':
-        return <SinglePlayerMenu onNewGame={onNewGame} onLoadGame={onLoadGame} onBack={onBackToMain} />;
+        return (
+          <div className="relative w-full h-screen overflow-hidden bg-black">
+            <div className="absolute inset-0">
+              <ImageWithFallback
+                src="https://images.unsplash.com/photo-1734547458574-62e9eb9d6e33?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b3JsZCUyMHdhciUyMG1pbGl0YXJ5JTIwdmludGFnZXxlbnwxfHx8fDE3NjI3OTM2NTF8MA&ixlib=rb-4.1.0&q=80&w=1080"
+                alt="Background"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/40" />
+            </div>
+            <div className="relative z-10">
+              <SinglePlayerMenu onNewGame={onNewGame} onLoadGame={onLoadGame} onBack={onBackToMain} />
+            </div>
+          </div>
+        );
 
       case 'load':
-        return <LoadGameMenu onBack={onBackToSinglePlayer} onConfirmLoad={onConfirmLoad} />;
+        return (
+          <div className="relative w-full h-screen overflow-hidden bg-black">
+            <div className="absolute inset-0">
+              <ImageWithFallback
+                src="https://images.unsplash.com/photo-1734547458574-62e9eb9d6e33?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b3JsZCUyMHdhciUyMG1pbGl0YXJ5JTIwdmludGFnZXxlbnwxfHx8fDE3NjI3OTM2NTF8MA&ixlib=rb-4.1.0&q=80&w=1080"
+                alt="Background"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/40" />
+            </div>
+            <div className="relative z-10">
+              <LoadGameMenu onBack={onBackToSinglePlayer} onConfirmLoad={onConfirmLoad} />
+            </div>
+          </div>
+        );
 
       case 'country-select':
         return <InteractiveCountrySelection onBack={onBackToSinglePlayer} onSelectCountry={onStartGame} onMapReady={onCountrySelectionMapReady} />;

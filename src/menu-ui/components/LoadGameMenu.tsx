@@ -16,6 +16,20 @@ interface LoadGameMenuProps {
   onConfirmLoad: (slotNumber: number) => void;
 }
 
+// Helper to get country color for flag
+function getCountryColor(countryName: string): string {
+  const colorMap: Record<string, string> = {
+    "Germany": "#8B0000",
+    "United States": "#1f3a93",
+    "United Kingdom": "#012169",
+    "France": "#0055A4",
+    "Italy": "#008C45",
+    "Japan": "#BC002D",
+    "Soviet Union": "#DA291C"
+  };
+  return colorMap[countryName] || "#666666";
+}
+
 export function LoadGameMenu({ onBack, onConfirmLoad }: LoadGameMenuProps) {
   const [activeTab, setActiveTab] = useState<"local" | "cloud">("local");
   const [selectedSave, setSelectedSave] = useState<SaveGame | null>(null);
@@ -48,36 +62,18 @@ export function LoadGameMenu({ onBack, onConfirmLoad }: LoadGameMenuProps) {
       if (loadedSaves.length > 0 && !selectedSave) {
         setSelectedSave(loadedSaves[0]);
       }
-    } else {
-      setSaves([]);
-      setSelectedSave(null);
     }
   }, [activeTab]);
 
-  const getCountryColor = (countryName: string): string => {
-    const colors: Record<string, string> = {
-      'Germany': '#CC0000',
-      'France': '#0055A4',
-      'USA': '#B22234',
-      'UK': '#012169',
-      'Italy': '#008C45',
-      'Japan': '#BC002D',
-      'Soviet': '#DA291C',
-    };
-    return colors[countryName] || '#808080';
-  };
-
   const handleDelete = (saveId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-
     const slotNumber = parseInt(saveId);
     SaveLoadManager.deleteSave(slotNumber);
 
-    const newSaves = saves.filter(save => save.id !== saveId);
-    setSaves(newSaves);
-
+    // Refresh saves list
+    setSaves(saves.filter(save => save.id !== saveId));
     if (selectedSave?.id === saveId) {
-      setSelectedSave(newSaves.length > 0 ? newSaves[0] : null);
+      setSelectedSave(null);
     }
   };
 
@@ -89,12 +85,8 @@ export function LoadGameMenu({ onBack, onConfirmLoad }: LoadGameMenuProps) {
   };
 
   return (
-    <div className="relative w-full h-screen flex items-center justify-center bg-cover bg-center"
-         style={{ backgroundImage: "url('/background.png')" }}>
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/60" />
-
-      <div className="relative z-10 w-[420px] bg-gradient-to-b from-stone-900/95 to-black/95 border-2 border-amber-900/60 shadow-2xl">
+    <div className="relative w-full h-screen flex items-center justify-center">
+      <div className="relative w-[420px] bg-gradient-to-b from-stone-900/95 to-black/95 border-2 border-amber-900/60 shadow-2xl">
         {/* Corner decorations */}
         <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-amber-700/80" />
         <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-amber-700/80" />
@@ -148,10 +140,10 @@ export function LoadGameMenu({ onBack, onConfirmLoad }: LoadGameMenuProps) {
             {activeTab === "local" && saves.length > 0 ? (
               <div className="p-2 space-y-1">
                 {saves.map((save) => (
-                  <button
+                  <div
                     key={save.id}
                     onClick={() => setSelectedSave(save)}
-                    className={`w-full flex items-center gap-3 p-2 group transition-colors ${
+                    className={`w-full flex items-center gap-3 p-2 group transition-colors cursor-pointer ${
                       selectedSave?.id === save.id
                         ? "bg-amber-900/30 border border-amber-700/60"
                         : "bg-stone-900/60 border border-transparent hover:bg-stone-800/60 hover:border-amber-900/40"
@@ -180,17 +172,17 @@ export function LoadGameMenu({ onBack, onConfirmLoad }: LoadGameMenuProps) {
                     >
                       <Trash2 className="w-4 h-4 text-red-500/80" />
                     </button>
-                  </button>
+                  </div>
                 ))}
               </div>
             ) : activeTab === "cloud" ? (
-              <div className="flex items-center justify-center min-h-[364px]">
+              <div className="flex items-center justify-center h-full">
                 <span className="text-amber-100/40 tracking-wider text-[11px]">
                   NO CLOUD SAVES FOUND
                 </span>
               </div>
             ) : (
-              <div className="flex items-center justify-center min-h-[364px]">
+              <div className="flex items-center justify-center h-full">
                 <span className="text-amber-100/40 tracking-wider text-[11px]">
                   NO SAVES FOUND
                 </span>
