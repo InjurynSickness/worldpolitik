@@ -25,21 +25,21 @@ export class MapRenderer {
         
         ctx.imageSmoothingEnabled = false;
 
-        // Draw terrain at reduced opacity
+        // Draw terrain at very reduced opacity (subtle background texture)
         ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 0.4;
+        ctx.globalAlpha = 0.15; // Reduced from 0.4 to 0.15 for subtle texture
         ctx.drawImage(this.canvasManager.processedTerrainCanvas, 0, 0);
 
-        // Draw political colors
+        // Draw political colors at full brightness (HOI4 style)
         ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 0.85;
+        ctx.globalAlpha = 1.0; // Increased from 0.85 to 1.0 for vibrant colors
         ctx.drawImage(this.canvasManager.politicalCanvas, 0, 0);
-        
+
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1.0;
 
         // Draw rivers
-        ctx.globalAlpha = 0.7;
+        ctx.globalAlpha = 0.8; // Slightly increased from 0.7 to 0.8
         ctx.drawImage(this.canvasManager.recoloredRiversCanvas, 0, 0);
         ctx.globalAlpha = 1.0;
 

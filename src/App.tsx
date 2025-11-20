@@ -47,7 +47,7 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
     setLoadingMessage("READY!");
     setTimeout(() => {
       setShowFigmaLoading(false);
-    }, 800);
+    }, 300); // Reduced from 800ms to 300ms
   };
 
   const onLoadGame = () => {
