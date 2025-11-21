@@ -26,22 +26,11 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry, onMapRead
 
     let provinceMapInstance: any = null;
 
-    // Report initial progress
-    console.log('[InteractiveCountrySelection] Reporting initial progress: 0% LOADING MAP');
-    if (onLoadingProgress) {
-      onLoadingProgress(0, "LOADING MAP");
-    }
-
     // Import the map dynamically
     console.log('[InteractiveCountrySelection] Starting dynamic import of provinceMap.js...');
     import('../../provinceMap.js')
       .then(({ ProvinceMap }) => {
         console.log('[InteractiveCountrySelection] ✓ ProvinceMap module loaded');
-
-        if (onLoadingProgress) {
-          console.log('[InteractiveCountrySelection] Reporting progress: 20% INITIALIZING MAP');
-          onLoadingProgress(20, "INITIALIZING MAP");
-        }
 
         // When user clicks a province/country on the map
         const handleCountryClick = (countryId: string) => {
@@ -51,12 +40,12 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry, onMapRead
 
         // When map is fully ready (including borders)
         const handleMapReady = () => {
-          console.log('[InteractiveCountrySelection] ✓ Map fully ready with borders!');
+          console.log('[InteractiveCountrySelection] ✓✓✓ MAP FULLY READY! ✓✓✓');
           setMapReady(true);
 
-          // Report completion
+          // ONLY NOW report 100% - map is actually done loading
           if (onLoadingProgress) {
-            console.log('[InteractiveCountrySelection] Reporting progress: 100% READY!');
+            console.log('[InteractiveCountrySelection] Reporting ACTUAL completion: 100% READY!');
             onLoadingProgress(100, "READY!");
           }
 
@@ -72,15 +61,10 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry, onMapRead
             handleCountryClick,
             handleMapReady
           );
-          console.log('[InteractiveCountrySelection] ✓ ProvinceMap instance created successfully');
+          console.log('[InteractiveCountrySelection] ✓ ProvinceMap instance created, starting asset load...');
         } catch (error) {
           console.error('[InteractiveCountrySelection] ERROR creating ProvinceMap:', error);
           throw error;
-        }
-
-        if (onLoadingProgress) {
-          console.log('[InteractiveCountrySelection] Reporting progress: 40% LOADING COUNTRIES');
-          onLoadingProgress(40, "LOADING COUNTRIES");
         }
 
         // Set up the map with country data
@@ -88,12 +72,6 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry, onMapRead
         import('../../game/GameStateInitializer.js')
           .then(({ GameStateInitializer }) => {
             console.log('[InteractiveCountrySelection] ✓ GameStateInitializer loaded');
-
-            if (onLoadingProgress) {
-              console.log('[InteractiveCountrySelection] Reporting progress: 60% SETTING UP NATIONS');
-              onLoadingProgress(60, "SETTING UP NATIONS");
-            }
-
             console.log('[InteractiveCountrySelection] Initializing game state...');
             const tempGameState = GameStateInitializer.initializeGameState();
             console.log('[InteractiveCountrySelection] ✓ Game state initialized, updating map...');
@@ -101,11 +79,7 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry, onMapRead
             provinceMapInstance.updateCountries(tempGameState.countries, countryData);
             provinceMapInstance.setProvinceOwnerMap(provinceToCountryMap);
             console.log('[InteractiveCountrySelection] ✓ Map updated with countries and provinces');
-
-            if (onLoadingProgress) {
-              console.log('[InteractiveCountrySelection] Reporting progress: 80% FINALIZING');
-              onLoadingProgress(80, "FINALIZING");
-            }
+            console.log('[InteractiveCountrySelection] Now waiting for ProvinceMap to finish loading assets...');
           })
           .catch((error) => {
             console.error('[InteractiveCountrySelection] ERROR loading GameStateInitializer:', error);

@@ -37,9 +37,18 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
       // User wants to select from all 192 countries - show interactive map
       setShowFigmaLoading(true);
       setLoadingProgress(0);
-      setLoadingMessage("LOADING MAP");
+      setLoadingMessage("LOADING SPRITES");
       setCurrentView('country-select');
-      // InteractiveCountrySelection will handle progress updates via onMapLoadingProgress
+
+      // Smooth VISUAL progress 0-90% (not tied to actual loading)
+      // Map will report 100% when actually ready
+      setTimeout(() => { setLoadingProgress(15); setLoadingMessage("INITIALIZING MAP"); }, 200);
+      setTimeout(() => { setLoadingProgress(30); setLoadingMessage("LOADING PROVINCES"); }, 500);
+      setTimeout(() => { setLoadingProgress(45); setLoadingMessage("LOADING TERRAIN"); }, 900);
+      setTimeout(() => { setLoadingProgress(60); setLoadingMessage("LOADING RIVERS"); }, 1400);
+      setTimeout(() => { setLoadingProgress(75); setLoadingMessage("BUILDING MAP"); }, 2000);
+      setTimeout(() => { setLoadingProgress(90); setLoadingMessage("ALMOST READY"); }, 2700);
+      // Will jump to 100% when map calls onMapLoadingProgress(100)
     } else {
       // User selected a major nation - start game directly
       onStartGame(country.id);
