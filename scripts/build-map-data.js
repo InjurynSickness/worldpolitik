@@ -114,19 +114,21 @@ async function readCSV() {
     console.log(`Reading CSV from: ${CSV_FILE_PATH}`);
     return new Promise((resolve, reject) => {
         fs.createReadStream(CSV_FILE_PATH)
-          .pipe(csv({ 
+          .pipe(csv({
             separator: ';',
-            mapHeaders: ({ header }) => header.trim()
+            headers: false  // HOI4 definition.csv has no headers
           }))
           .on('data', (row) => {
             try {
-                const id = row[''] || row['province'] || row['id'];
-                const r = row['red'];
-                const g = row['green'];
-                const b = row['blue'];
-                const name = (row['x'] || row['name'] || 'Unknown').replace(/"/g, '\\"').trim();
+                // HOI4 format: province_id;R;G;B;type;coastal;terrain;continent
+                const id = row[0];
+                const r = row[1];
+                const g = row[2];
+                const b = row[3];
+                const type = row[4] || 'land';  // land/sea/lake
+                const name = type;  // For now, use type as name (we can load real names later)
 
-                if (id && r && g && b && name && !isNaN(parseInt(id))) {
+                if (id && r !== undefined && g !== undefined && b !== undefined && !isNaN(parseInt(id))) {
                     const colorKey = `${r},${g},${b}`;
                     const provinceId = id;
                     provinceColorMap.set(colorKey, { id: provinceId, name: name });
@@ -138,7 +140,7 @@ async function readCSV() {
             }
           })
           .on('end', () => {
-            console.log(`CSV Pass: Found ${provinceColorMap.size} unique provinces.`);
+            console.log(`CSV Pass: Found ${provinceColorMap.size} unique provinces (HOI4 format).`);
             resolve();
           })
           .on('error', (err) => {
@@ -318,12 +320,14 @@ export const provinceToCountryMap = new Map<string, string>([
 async function run() {
     try {
         await readCSV();
-        await readProvinceNames(); // Do the "fast-track" mapping
-        const borderMap = await buildBorderMap();
+        // Skip province names and borders for HOI4 map (13,000+ provinces - too slow!)
+        // await readProvinceNames();
+        // const borderMap = await buildBorderMap();
         generateProvinceDataFile();
-        generateProvinceBorderFile(borderMap);
-        generateProvinceAssignmentsFile(); // Generate the pre-filled map
-        console.log('--- Map Data Builder Finished Successfully ---');
+        // generateProvinceBorderFile(borderMap);
+        // generateProvinceAssignmentsFile();
+        console.log('--- Map Data Builder Finished Successfully (HOI4 Basic Mode) ---');
+        console.log('Note: Border generation and province assignments skipped for performance.');
     } catch (err) {
         console.error("Builder failed:", err);
     }
