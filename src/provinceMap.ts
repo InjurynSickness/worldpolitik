@@ -98,57 +98,96 @@ export class ProvinceMap {
     }
 
     private loadAssets(): void {
+        console.log('[ProvinceMap] Starting asset loading...');
         let assetsLoaded = 0;
         const totalAssets = 3;
+        const loadedAssets: string[] = [];
 
-        const onAssetLoad = () => {
+        const onAssetLoad = (assetName: string) => {
             assetsLoaded++;
+            loadedAssets.push(assetName);
+            console.log(`[ProvinceMap] ✓ Asset loaded: ${assetName} (${assetsLoaded}/${totalAssets})`);
+
             if (assetsLoaded === totalAssets) {
-                console.log("All map assets loaded.");
-                this.canvasManager.hiddenCtx.drawImage(this.provinceImage, 0, 0);
+                console.log('[ProvinceMap] ✓ All assets loaded:', loadedAssets);
+                console.log('[ProvinceMap] Drawing province image to hidden canvas...');
+
+                try {
+                    this.canvasManager.hiddenCtx.drawImage(this.provinceImage, 0, 0);
+                    console.log('[ProvinceMap] ✓ Province image drawn');
+                } catch (error) {
+                    console.error('[ProvinceMap] ERROR drawing province image:', error);
+                }
+
                 this.mapReady = true;
 
+                console.log('[ProvinceMap] Processing terrain image...');
                 this.processTerrainImage();
+
+                console.log('[ProvinceMap] Building political map...');
                 this.buildPoliticalMap();
 
-                // Render the map initially (without borders for now - they're too slow)
+                console.log('[ProvinceMap] Rendering map for first time...');
                 this.render();
-                console.log("Map rendered for the first time.");
+                console.log('[ProvinceMap] ✓ Map rendered');
 
                 // Build borders asynchronously in the background (non-blocking)
                 setTimeout(() => {
-                    console.log("Building borders in background...");
-                    this.buildBorderMap();
-                    this.render();
-                    console.log("Borders complete and rendered.");
+                    console.log('[ProvinceMap] Building borders in background...');
+                    try {
+                        this.buildBorderMap();
+                        this.render();
+                        console.log('[ProvinceMap] ✓ Borders complete and rendered');
+                    } catch (error) {
+                        console.error('[ProvinceMap] ERROR building borders:', error);
+                    }
 
                     // Notify that map is FULLY ready (including borders)
+                    console.log('[ProvinceMap] Calling onMapReady callback...');
                     if (this.onMapReady) {
                         this.onMapReady();
+                    } else {
+                        console.warn('[ProvinceMap] WARNING: No onMapReady callback provided');
                     }
                 }, 100);
             }
         };
 
-        this.terrainImage.onload = onAssetLoad;
-        this.terrainImage.onerror = (e) => console.error('Failed to load terrain.png:', e);
+        console.log('[ProvinceMap] Loading terrain.png...');
+        this.terrainImage.onload = () => onAssetLoad('terrain.png');
+        this.terrainImage.onerror = (e) => {
+            console.error('[ProvinceMap] ✗ FAILED to load terrain.png:', e);
+            console.error('[ProvinceMap] Attempted path: ./terrain.png');
+        };
         this.terrainImage.src = './terrain.png';
 
-        this.provinceImage.onload = onAssetLoad;
-        this.provinceImage.onerror = (e) => console.error('Failed to load provinces.png:', e);
+        console.log('[ProvinceMap] Loading provinces.png...');
+        this.provinceImage.onload = () => onAssetLoad('provinces.png');
+        this.provinceImage.onerror = (e) => {
+            console.error('[ProvinceMap] ✗ FAILED to load provinces.png:', e);
+            console.error('[ProvinceMap] Attempted path: ./provinces.png');
+        };
         this.provinceImage.src = './provinces.png';
 
+        console.log('[ProvinceMap] Loading rivers.png...');
         this.riversImage.onload = () => {
-            console.log("Recoloring rivers...");
-            this.canvasManager.recoloredRiversCtx.drawImage(this.riversImage, 0, 0);
-            this.canvasManager.recoloredRiversCtx.globalCompositeOperation = 'source-in';
-            this.canvasManager.recoloredRiversCtx.fillStyle = '#283a4a';
-            this.canvasManager.recoloredRiversCtx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
-            this.canvasManager.recoloredRiversCtx.globalCompositeOperation = 'source-over';
-            console.log("Rivers recolored.");
-            onAssetLoad();
+            console.log('[ProvinceMap] Recoloring rivers...');
+            try {
+                this.canvasManager.recoloredRiversCtx.drawImage(this.riversImage, 0, 0);
+                this.canvasManager.recoloredRiversCtx.globalCompositeOperation = 'source-in';
+                this.canvasManager.recoloredRiversCtx.fillStyle = '#283a4a';
+                this.canvasManager.recoloredRiversCtx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+                this.canvasManager.recoloredRiversCtx.globalCompositeOperation = 'source-over';
+                console.log('[ProvinceMap] ✓ Rivers recolored');
+            } catch (error) {
+                console.error('[ProvinceMap] ERROR recoloring rivers:', error);
+            }
+            onAssetLoad('rivers.png');
         };
-        this.riversImage.onerror = (e) => console.error('Failed to load rivers.png:', e);
+        this.riversImage.onerror = (e) => {
+            console.error('[ProvinceMap] ✗ FAILED to load rivers.png:', e);
+            console.error('[ProvinceMap] Attempted path: ./rivers.png');
+        };
         this.riversImage.src = './rivers.png';
     }
 

@@ -17,69 +17,107 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry, onMapRead
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    console.log('[InteractiveCountrySelection] Component mounted, container:', containerRef.current);
+
+    if (!containerRef.current) {
+      console.error('[InteractiveCountrySelection] ERROR: No container ref available!');
+      return;
+    }
 
     let provinceMapInstance: any = null;
 
     // Report initial progress
+    console.log('[InteractiveCountrySelection] Reporting initial progress: 0% LOADING MAP');
     if (onLoadingProgress) {
       onLoadingProgress(0, "LOADING MAP");
     }
 
     // Import the map dynamically
-    import('../../provinceMap.js').then(({ ProvinceMap }) => {
-      if (onLoadingProgress) {
-        onLoadingProgress(20, "INITIALIZING MAP");
-      }
-
-      // When user clicks a province/country on the map
-      const handleCountryClick = (countryId: string) => {
-        console.log('Country clicked:', countryId);
-        setSelectedCountryId(countryId);
-      };
-
-      // When map is fully ready (including borders)
-      const handleMapReady = () => {
-        console.log('Country selection map fully ready with borders');
-        setMapReady(true);
-
-        // Report completion
-        if (onLoadingProgress) {
-          onLoadingProgress(100, "READY!");
-        }
-
-        // Notify parent that map is ready (this will hide the loading screen)
-        onMapReady();
-      };
-
-      provinceMapInstance = new ProvinceMap(
-        containerRef.current!,
-        handleCountryClick,
-        handleMapReady
-      );
-
-      if (onLoadingProgress) {
-        onLoadingProgress(40, "LOADING COUNTRIES");
-      }
-
-      // Set up the map with country data
-      import('../../game/GameStateInitializer.js').then(({ GameStateInitializer }) => {
-        if (onLoadingProgress) {
-          onLoadingProgress(60, "SETTING UP NATIONS");
-        }
-
-        const tempGameState = GameStateInitializer.initializeGameState();
-        provinceMapInstance.updateCountries(tempGameState.countries, countryData);
-        provinceMapInstance.setProvinceOwnerMap(provinceToCountryMap);
+    console.log('[InteractiveCountrySelection] Starting dynamic import of provinceMap.js...');
+    import('../../provinceMap.js')
+      .then(({ ProvinceMap }) => {
+        console.log('[InteractiveCountrySelection] ✓ ProvinceMap module loaded');
 
         if (onLoadingProgress) {
-          onLoadingProgress(80, "FINALIZING");
+          console.log('[InteractiveCountrySelection] Reporting progress: 20% INITIALIZING MAP');
+          onLoadingProgress(20, "INITIALIZING MAP");
         }
+
+        // When user clicks a province/country on the map
+        const handleCountryClick = (countryId: string) => {
+          console.log('[InteractiveCountrySelection] Country clicked:', countryId);
+          setSelectedCountryId(countryId);
+        };
+
+        // When map is fully ready (including borders)
+        const handleMapReady = () => {
+          console.log('[InteractiveCountrySelection] ✓ Map fully ready with borders!');
+          setMapReady(true);
+
+          // Report completion
+          if (onLoadingProgress) {
+            console.log('[InteractiveCountrySelection] Reporting progress: 100% READY!');
+            onLoadingProgress(100, "READY!");
+          }
+
+          // Notify parent that map is ready (this will hide the loading screen)
+          console.log('[InteractiveCountrySelection] Calling parent onMapReady callback...');
+          onMapReady();
+        };
+
+        console.log('[InteractiveCountrySelection] Creating ProvinceMap instance...');
+        try {
+          provinceMapInstance = new ProvinceMap(
+            containerRef.current!,
+            handleCountryClick,
+            handleMapReady
+          );
+          console.log('[InteractiveCountrySelection] ✓ ProvinceMap instance created successfully');
+        } catch (error) {
+          console.error('[InteractiveCountrySelection] ERROR creating ProvinceMap:', error);
+          throw error;
+        }
+
+        if (onLoadingProgress) {
+          console.log('[InteractiveCountrySelection] Reporting progress: 40% LOADING COUNTRIES');
+          onLoadingProgress(40, "LOADING COUNTRIES");
+        }
+
+        // Set up the map with country data
+        console.log('[InteractiveCountrySelection] Loading GameStateInitializer...');
+        import('../../game/GameStateInitializer.js')
+          .then(({ GameStateInitializer }) => {
+            console.log('[InteractiveCountrySelection] ✓ GameStateInitializer loaded');
+
+            if (onLoadingProgress) {
+              console.log('[InteractiveCountrySelection] Reporting progress: 60% SETTING UP NATIONS');
+              onLoadingProgress(60, "SETTING UP NATIONS");
+            }
+
+            console.log('[InteractiveCountrySelection] Initializing game state...');
+            const tempGameState = GameStateInitializer.initializeGameState();
+            console.log('[InteractiveCountrySelection] ✓ Game state initialized, updating map...');
+
+            provinceMapInstance.updateCountries(tempGameState.countries, countryData);
+            provinceMapInstance.setProvinceOwnerMap(provinceToCountryMap);
+            console.log('[InteractiveCountrySelection] ✓ Map updated with countries and provinces');
+
+            if (onLoadingProgress) {
+              console.log('[InteractiveCountrySelection] Reporting progress: 80% FINALIZING');
+              onLoadingProgress(80, "FINALIZING");
+            }
+          })
+          .catch((error) => {
+            console.error('[InteractiveCountrySelection] ERROR loading GameStateInitializer:', error);
+          });
+      })
+      .catch((error) => {
+        console.error('[InteractiveCountrySelection] ERROR loading ProvinceMap module:', error);
       });
-    });
 
     // Cleanup on unmount
     return () => {
+      console.log('[InteractiveCountrySelection] Component unmounting, cleaning up...');
       if (provinceMapInstance) {
         provinceMapInstance.destroy();
       }
