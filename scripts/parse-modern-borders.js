@@ -18,6 +18,16 @@ const SOV_CORE_PRIORITY = ['UKR', 'BLR', 'GEO', 'ARM', 'AZE', 'KAZ', 'UZB', 'TKM
 // Priority order for YUG states
 const YUG_CORE_PRIORITY = ['CRO', 'SRB', 'BOS', 'SLO', 'MAC', 'MON'];
 
+// Colonial territories to reassign for 2000s accuracy
+// These were transferred/returned between WW2 and 2000
+const COLONIAL_REASSIGNMENTS = {
+    '320': 'IND',  // French India (Pondicherry) → India (transferred 1954)
+    '321': 'IND',  // Portuguese India (Goa) → India (annexed 1961)
+    '721': 'INS',  // Portuguese Timor → Indonesia (annexed 1975, independent 2002)
+    '326': 'CHI',  // Hong Kong → China (returned 1997)
+    '728': 'CHI',  // Macau → China (returned 1999)
+};
+
 // Parse a single state file
 function parseStateFile(filePath) {
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -103,7 +113,17 @@ function parseAllStates() {
             continue;
         }
 
-        const modernOwner = getModernOwner(owner, cores);
+        let modernOwner = getModernOwner(owner, cores);
+
+        // Extract state ID from filename (e.g., "320-French India.txt" → "320")
+        const stateId = file.split('-')[0];
+
+        // Apply colonial reassignments for 2000s accuracy
+        if (COLONIAL_REASSIGNMENTS[stateId]) {
+            const originalOwner = modernOwner;
+            modernOwner = COLONIAL_REASSIGNMENTS[stateId];
+            console.log(`[Parser] ✓ Colonial reassignment: ${file}: ${originalOwner} → ${modernOwner}`);
+        }
 
         // Track stats
         stats.totalStates++;

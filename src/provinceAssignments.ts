@@ -1,5 +1,5 @@
 // Auto-generated from HOI4 state files with modern 2000s borders
-// Generated on: 2025-11-21T21:21:02.871Z
+// Generated on: 2025-11-21T22:35:11.959Z
 // Source: ./states
 //
 // This uses add_core_of tags to split:
@@ -11,7 +11,7 @@
 // - Soviet states split: 111
 // - Yugoslav states split: 5
 // - Total provinces assigned: 10234
-// - Unique countries: 152
+// - Unique countries: 153
 
 /**
  * Maps province IDs to country ISO codes (2000s borders)
@@ -1110,7 +1110,7 @@ export const provinceToCountryMap = new Map<string, string>([
     ["1268", "RAJ"],
     ["1269", "SOL"],
     ["1272", "KAZ"],
-    ["1273", "POR"],
+    ["1273", "IND"],
     ["1274", "INS"],
     ["1275", "RAJ"],
     ["1276", "KAZ"],
@@ -6945,7 +6945,7 @@ export const provinceToCountryMap = new Map<string, string>([
     ["10059", "ALG"],
     ["10060", "RAJ"],
     ["10061", "EGY"],
-    ["10062", "PRC"],
+    ["10062", "CHI"],
     ["10063", "SPR"],
     ["10064", "PRC"],
     ["10065", "NKR"],
@@ -7032,7 +7032,7 @@ export const provinceToCountryMap = new Map<string, string>([
     ["10146", "KAZ"],
     ["10147", "PNG"],
     ["10148", "KAZ"],
-    ["10149", "FRA"],
+    ["10149", "IND"],
     ["10150", "INS"],
     ["10151", "USA"],
     ["10152", "RAJ"],
@@ -8862,7 +8862,7 @@ export const provinceToCountryMap = new Map<string, string>([
     ["11978", "RAJ"],
     ["11979", "EGY"],
     ["11980", "PRC"],
-    ["11981", "PRC"],
+    ["11981", "CHI"],
     ["11982", "PRC"],
     ["11983", "PRC"],
     ["11984", "CYP"],
