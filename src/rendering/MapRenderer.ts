@@ -24,10 +24,16 @@ export class MapRenderer {
 
         ctx.imageSmoothingEnabled = false;
 
-        // Draw ONLY political colors - no terrain, no background
+        // TEMPORARY: Draw raw provinces.png to see full HOI4 map structure
+        // TODO: Generate proper province ownership data for all 13,382 provinces
         ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = 0.3; // Dim so we can see it
+        ctx.drawImage(this.canvasManager.hiddenCanvas, 0, 0);
+
+        // Draw political colors on top (only 22% of map has colors currently)
+        ctx.globalAlpha = 0.8;
         ctx.drawImage(this.canvasManager.politicalCanvas, 0, 0);
+        ctx.globalAlpha = 1.0;
 
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1.0;
