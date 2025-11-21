@@ -59,6 +59,10 @@ export class ProvinceMap {
     // Cache province border pixels on demand (only for selected province)
     private selectedProvinceBorderCache: Map<string, [number, number][]> = new Map();
 
+    // Country borders - static black borders between countries
+    private countryBorders: [number, number][] = [];
+    private countryBordersReady: boolean = false;
+
     constructor(container: HTMLElement, onCountrySelect: (countryId: string) => void, onMapReady?: () => void) {
         this.container = container;
         this.onCountrySelect = onCountrySelect;
@@ -132,13 +136,12 @@ export class ProvinceMap {
                 console.log('[ProvinceMap] Building political map...');
                 this.buildPoliticalMap();
 
+                console.log('[ProvinceMap] Generating country borders...');
+                this.generateCountryBorders();
+
                 console.log('[ProvinceMap] Rendering map for first time...');
                 this.render();
                 console.log('[ProvinceMap] ✓ Map rendered');
-
-                // Skip border building - old border data doesn't match new HOI4 provinces
-                // TODO: Generate new border data or use a different border rendering approach
-                console.log('[ProvinceMap] Skipping border generation (incompatible with HOI4 province data)');
 
                 // Wait for browser to paint the frame before notifying map is ready
                 // This ensures smooth loading screen transition and reduces perceived lag
@@ -266,11 +269,12 @@ export class ProvinceMap {
 
     private handlePaint(x: number, y: number, isRightClick: boolean): void {
         if (!this.mapReady) return;
-        
+
         const changed = this.mapEditor.paintProvince(x, y, isRightClick);
-        
+
         if (changed) {
             this.buildPoliticalMap();
+            this.generateCountryBorders();  // Regenerate borders when painting in editor
             this.buildBorderMap();
         }
     }
@@ -313,6 +317,15 @@ export class ProvinceMap {
     private drawOverlays(): void {
         this.canvasManager.overlayCtx.clearRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
+        // Draw static black country borders (always visible)
+        if (this.countryBordersReady && this.countryBorders.length > 0) {
+            this.canvasManager.overlayCtx.fillStyle = '#000000';  // Static black
+            for (const [x, y] of this.countryBorders) {
+                this.canvasManager.overlayCtx.fillRect(x, y, 1, 1);
+            }
+        }
+
+        // Draw flickering orange province selection
         if (this.selectedProvinceId && !this.isEditorMode) {
             // Get or generate border pixels for selected province
             let borders = this.selectedProvinceBorderCache.get(this.selectedProvinceId);
@@ -324,7 +337,7 @@ export class ProvinceMap {
                 console.log('[ProvinceMap] Generated', borders.length, 'border pixels');
             }
 
-            // Draw flickering orange border
+            // Draw flickering orange border on top of country borders
             if (borders.length > 0) {
                 this.canvasManager.overlayCtx.fillStyle = `rgba(255, 140, 0, ${this.pulseOpacity})`;
                 for (const [x, y] of borders) {
@@ -400,6 +413,73 @@ export class ProvinceMap {
         }
 
         return borders;
+    }
+
+    // Generate country borders - detects where different countries meet
+    // This is regenerated when territories change (war, peace treaties, etc.)
+    private generateCountryBorders(): void {
+        const startTime = performance.now();
+        console.log('[ProvinceMap] Generating country borders...');
+
+        this.countryBorders = [];
+        this.countryBordersReady = false;
+
+        // Get the political map image data (country colors)
+        const imageData = this.canvasManager.politicalCtx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT);
+        const data = imageData.data;
+
+        let borderPixels = 0;
+
+        // Scan pixels and find where different countries meet
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                const idx = (y * MAP_WIDTH + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+                const a = data[idx + 3];
+
+                // Skip transparent pixels (no country)
+                if (a === 0) continue;
+
+                const currentColor = `${r},${g},${b}`;
+
+                // Check 4-directional neighbors (faster than 8-directional)
+                const neighbors = [
+                    [x + 1, y],  // Right
+                    [x, y + 1],  // Down
+                ];
+
+                let isDifferentCountry = false;
+
+                for (const [nx, ny] of neighbors) {
+                    if (nx >= 0 && nx < MAP_WIDTH && ny >= 0 && ny < MAP_HEIGHT) {
+                        const nidx = (ny * MAP_WIDTH + nx) * 4;
+                        const nr = data[nidx];
+                        const ng = data[nidx + 1];
+                        const nb = data[nidx + 2];
+                        const na = data[nidx + 3];
+
+                        // Different country if different color or neighbor is transparent
+                        const neighborColor = `${nr},${ng},${nb}`;
+                        if (na === 0 || currentColor !== neighborColor) {
+                            isDifferentCountry = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isDifferentCountry) {
+                    this.countryBorders.push([x, y]);
+                    borderPixels++;
+                }
+            }
+        }
+
+        this.countryBordersReady = true;
+
+        const elapsed = performance.now() - startTime;
+        console.log(`[ProvinceMap] ✓ Country borders generated: ${borderPixels} border pixels in ${elapsed.toFixed(0)}ms`);
     }
 
     // Throttled render using requestAnimationFrame to prevent lag
@@ -486,10 +566,11 @@ export class ProvinceMap {
     
     public setProvinceOwnerMap(ownerMap: Map<string, string>): void {
         console.log("Loading province owner map...");
-        this.provinceOwnerMap = new Map(ownerMap); 
-        
+        this.provinceOwnerMap = new Map(ownerMap);
+
         if (this.mapReady) {
             this.buildPoliticalMap();
+            this.generateCountryBorders();  // Regenerate borders when territories change
             this.buildBorderMap();
         }
     }
