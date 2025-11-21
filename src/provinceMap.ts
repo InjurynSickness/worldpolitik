@@ -131,10 +131,12 @@ export class ProvinceMap {
         };
 
         this.terrainImage.onload = onAssetLoad;
-        this.terrainImage.src = './terrain.bmp';
+        this.terrainImage.onerror = (e) => console.error('Failed to load terrain.png:', e);
+        this.terrainImage.src = './terrain.png';
 
         this.provinceImage.onload = onAssetLoad;
-        this.provinceImage.src = './provinces.bmp';
+        this.provinceImage.onerror = (e) => console.error('Failed to load provinces.png:', e);
+        this.provinceImage.src = './provinces.png';
 
         this.riversImage.onload = () => {
             console.log("Recoloring rivers...");
@@ -146,7 +148,8 @@ export class ProvinceMap {
             console.log("Rivers recolored.");
             onAssetLoad();
         };
-        this.riversImage.src = './rivers.bmp';
+        this.riversImage.onerror = (e) => console.error('Failed to load rivers.png:', e);
+        this.riversImage.src = './rivers.png';
     }
 
     private processTerrainImage(): void {
