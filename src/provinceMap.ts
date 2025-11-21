@@ -14,8 +14,8 @@ import { MapEditor } from './editor/MapEditor.js';
 import { PoliticalMapBuilder } from './political/PoliticalMapBuilder.js';
 import { BorderMapBuilder } from './borders/BorderMapBuilder.js';
 
-const MAP_WIDTH = 5616;
-const MAP_HEIGHT = 2160;
+const MAP_WIDTH = 5632;  // HOI4 map dimensions
+const MAP_HEIGHT = 2048;
 
 export class ProvinceMap {
     private container: HTMLElement;

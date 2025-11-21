@@ -101,7 +101,7 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry, onMapRead
   const selectedCountryData = selectedCountryId ? countryData.get(selectedCountryId) : null;
 
   return (
-    <div className="relative w-full h-screen bg-[#1a2332]">
+    <div className="relative w-full h-screen bg-black">
       {/* Map container */}
       <div ref={containerRef} className="absolute inset-0" />
 
