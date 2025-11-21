@@ -84,7 +84,15 @@ export class CameraController {
     public getMapCoordinates(screenX: number, screenY: number): { x: number, y: number } {
         const x = (screenX - this.camera.x) / this.camera.zoom;
         const y = (screenY - this.camera.y) / this.camera.zoom;
-        return { x: Math.floor(x), y: Math.floor(y) };
+        const result = { x: Math.floor(x), y: Math.floor(y) };
+
+        console.log('[CameraController] getMapCoordinates:', {
+            screen: { x: screenX, y: screenY },
+            camera: { x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom },
+            map: result
+        });
+
+        return result;
     }
 
     public updateViewportSize(width: number, height: number): void {

@@ -56,6 +56,9 @@ export class ProvinceMap {
     // Render throttling to prevent lag on pan/zoom
     private renderPending: boolean = false;
 
+    // Cache province border pixels on demand (only for selected province)
+    private selectedProvinceBorderCache: Map<string, [number, number][]> = new Map();
+
     constructor(container: HTMLElement, onCountrySelect: (countryId: string) => void, onMapReady?: () => void) {
         this.container = container;
         this.onCountrySelect = onCountrySelect;
@@ -311,21 +314,92 @@ export class ProvinceMap {
         this.canvasManager.overlayCtx.clearRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
 
         if (this.selectedProvinceId && !this.isEditorMode) {
-            const borders = provinceBorders.get(this.selectedProvinceId);
-            if (borders) {
-                this.canvasManager.overlayCtx.fillStyle = `rgba(${this.pulseColor}, ${this.pulseOpacity})`; 
+            // Get or generate border pixels for selected province
+            let borders = this.selectedProvinceBorderCache.get(this.selectedProvinceId);
+
+            if (!borders) {
+                console.log('[ProvinceMap] Generating borders for province:', this.selectedProvinceId);
+                borders = this.generateProvinceBorders(this.selectedProvinceId);
+                this.selectedProvinceBorderCache.set(this.selectedProvinceId, borders);
+                console.log('[ProvinceMap] Generated', borders.length, 'border pixels');
+            }
+
+            // Draw flickering orange border
+            if (borders.length > 0) {
+                this.canvasManager.overlayCtx.fillStyle = `rgba(255, 140, 0, ${this.pulseOpacity})`;
                 for (const [x, y] of borders) {
                     this.canvasManager.overlayCtx.fillRect(x - 1, y - 1, 3, 3);
                 }
             }
         }
-        
+
         this.labelRenderer.drawLabels(
             this.canvasManager.overlayCtx,
             this.countryLabelCache,
             this.provinceOwnerMap,
             this.cameraController.camera.zoom
         );
+    }
+
+    // Generate border pixels for a specific province (on-demand, cached)
+    private generateProvinceBorders(provinceId: string): [number, number][] {
+        const borders: [number, number][] = [];
+        const imageData = this.canvasManager.hiddenCtx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT);
+        const data = imageData.data;
+
+        // Find target province color
+        let targetColor: string | null = null;
+        for (const [colorKey, province] of provinceColorMap.entries()) {
+            if (province.id === provinceId) {
+                targetColor = colorKey;
+                break;
+            }
+        }
+
+        if (!targetColor) return borders;
+
+        const [targetR, targetG, targetB] = targetColor.split(',').map(Number);
+
+        // Scan pixels and find edges
+        for (let y = 0; y < MAP_HEIGHT; y++) {
+            for (let x = 0; x < MAP_WIDTH; x++) {
+                const idx = (y * MAP_WIDTH + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+
+                // Check if this pixel is part of our province
+                if (r === targetR && g === targetG && b === targetB) {
+                    // Check if any neighbor is a different province (edge detection)
+                    let isEdge = false;
+                    for (let dy = -1; dy <= 1 && !isEdge; dy++) {
+                        for (let dx = -1; dx <= 1 && !isEdge; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+
+                            const nx = x + dx;
+                            const ny = y + dy;
+
+                            if (nx >= 0 && nx < MAP_WIDTH && ny >= 0 && ny < MAP_HEIGHT) {
+                                const nidx = (ny * MAP_WIDTH + nx) * 4;
+                                const nr = data[nidx];
+                                const ng = data[nidx + 1];
+                                const nb = data[nidx + 2];
+
+                                if (nr !== targetR || ng !== targetG || nb !== targetB) {
+                                    isEdge = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (isEdge) {
+                        borders.push([x, y]);
+                    }
+                }
+            }
+        }
+
+        return borders;
     }
 
     // Throttled render using requestAnimationFrame to prevent lag
