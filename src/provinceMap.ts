@@ -139,6 +139,9 @@ export class ProvinceMap {
                 console.log('[ProvinceMap] Generating country borders...');
                 this.generateCountryBorders();
 
+                console.log('[ProvinceMap] Drawing borders and overlays...');
+                this.drawOverlays();
+
                 console.log('[ProvinceMap] Rendering map for first time...');
                 this.render();
                 console.log('[ProvinceMap] ✓ Map rendered');

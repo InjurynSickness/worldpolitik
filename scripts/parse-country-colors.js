@@ -201,11 +201,26 @@ function rgbToHex(r, g, b) {
 }
 
 // Generate fallback color for countries without color files
-function generateFallbackColor(index, total) {
+// Uses prime number spacing and tag hash to ensure unique colors
+function generateFallbackColor(tag, index, total) {
+    // Hash the tag to get a stable seed
+    let hash = 0;
+    for (let i = 0; i < tag.length; i++) {
+        hash = ((hash << 5) - hash) + tag.charCodeAt(i);
+        hash = hash & hash; // Convert to 32bit integer
+    }
+
+    // Use prime numbers for spacing to avoid collisions
+    const primes = [7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
+    const prime = primes[Math.abs(hash) % primes.length];
+
+    // Generate distinct hue
     const goldenRatio = 0.618033988749895;
-    const hue = (index * goldenRatio) % 1.0;
-    const saturation = 0.6 + (index % 3) * 0.1;
-    const lightness = 0.4 + (index % 5) * 0.08;
+    const hue = ((index * prime * goldenRatio) + (Math.abs(hash) / 1000000)) % 1.0;
+
+    // Vary saturation and lightness based on tag
+    const saturation = 0.55 + ((Math.abs(hash) % 30) / 100); // 0.55 - 0.85
+    const lightness = 0.35 + ((Math.abs(hash >> 8) % 25) / 100); // 0.35 - 0.60
 
     return hslToHex(hue, saturation, lightness);
 }
@@ -284,6 +299,8 @@ function generateCountryData(tags, colorMap) {
 
     let foundColors = 0;
     let fallbackColors = 0;
+    let adjustedColors = 0;
+    const usedColors = new Set();
 
     const entries = tags.map((tag, index) => {
         let name, color;
@@ -293,13 +310,21 @@ function generateCountryData(tags, colorMap) {
             name = data.name;
             color = data.color;
             foundColors++;
+
+            // Check for duplicate color - if found, generate unique variant
+            if (usedColors.has(color)) {
+                console.log(`[Parser] ⚠️  Duplicate color detected for ${tag} (${name}): ${color} - generating unique variant`);
+                color = generateFallbackColor(tag, index, tags.length);
+                adjustedColors++;
+            }
         } else {
-            // Fallback: use tag as name and generate color
+            // Fallback: use tag as name and generate UNIQUE color based on tag
             name = tag;
-            color = generateFallbackColor(index, tags.length);
+            color = generateFallbackColor(tag, index, tags.length);
             fallbackColors++;
         }
 
+        usedColors.add(color);
         return `    ["${tag}", { name: "${name}", color: "${color}" }]`;
     });
 
@@ -334,7 +359,7 @@ ${entries.join(',\n')}
     fs.writeFileSync(OUTPUT_PATH, output, 'utf-8');
     console.log('[Parser] ✓ Written to:', OUTPUT_PATH);
 
-    return { foundColors, fallbackColors };
+    return { foundColors, fallbackColors, adjustedColors };
 }
 
 // Main
@@ -348,6 +373,7 @@ try {
     console.log('\n=== Statistics ===');
     console.log(`Total countries: ${tags.length}`);
     console.log(`Colors from files: ${stats.foundColors}`);
+    console.log(`Duplicate colors adjusted: ${stats.adjustedColors}`);
     console.log(`Fallback colors: ${stats.fallbackColors}`);
     console.log(`Coverage: ${((stats.foundColors / tags.length) * 100).toFixed(1)}%`);
 
