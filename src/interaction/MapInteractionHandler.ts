@@ -11,7 +11,7 @@ export class MapInteractionHandler {
     constructor(
         private canvas: HTMLCanvasElement,
         private cameraController: CameraController,
-        private onHover: (x: number, y: number) => void,
+        private onHover: ((x: number, y: number) => void) | null,  // Optional, removed hover visual feedback
         private onClick: (x: number, y: number) => void,
         private onPaint: (x: number, y: number, isRightClick: boolean) => void,
         private onPanOrZoom: () => void,
@@ -22,12 +22,22 @@ export class MapInteractionHandler {
 
     private setupEventListeners(): void {
         this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-        
+
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
         this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
+    }
+
+    // Get accurate mouse coordinates using getBoundingClientRect
+    // This fixes coordinate bugs when canvas has CSS transforms or scaling
+    private getCanvasCoordinates(event: MouseEvent): { x: number, y: number } {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
     }
 
     private handleMouseDown(event: MouseEvent): void {
@@ -38,7 +48,8 @@ export class MapInteractionHandler {
         if (event.button === 0) {
             if (this.isEditorMode()) {
                 this.isPainting = true;
-                const { x, y } = this.cameraController.getMapCoordinates(event.offsetX, event.offsetY);
+                const canvasCoords = this.getCanvasCoordinates(event);
+                const { x, y } = this.cameraController.getMapCoordinates(canvasCoords.x, canvasCoords.y);
                 this.onPaint(x, y, false);
             } else {
                 this.isPanning = true;
@@ -50,7 +61,8 @@ export class MapInteractionHandler {
         } else if (event.button === 2) {
             event.preventDefault();
             if (this.isEditorMode()) {
-                const { x, y } = this.cameraController.getMapCoordinates(event.offsetX, event.offsetY);
+                const canvasCoords = this.getCanvasCoordinates(event);
+                const { x, y } = this.cameraController.getMapCoordinates(canvasCoords.x, canvasCoords.y);
                 this.onPaint(x, y, true);
             }
         }
@@ -62,14 +74,15 @@ export class MapInteractionHandler {
         const isClick = dx < this.dragThreshold && dy < this.dragThreshold;
 
         if (event.button === 0 && isClick && !this.isEditorMode()) {
-            const { x, y } = this.cameraController.getMapCoordinates(event.offsetX, event.offsetY);
+            const canvasCoords = this.getCanvasCoordinates(event);
+            const { x, y } = this.cameraController.getMapCoordinates(canvasCoords.x, canvasCoords.y);
+            console.log('[MapInteractionHandler] Click at canvas coords:', canvasCoords, 'map coords:', {x, y});
             this.onClick(x, y);
         }
-        
+
         this.isPanning = false;
         this.isPainting = false;
-        const { x, y } = this.cameraController.getMapCoordinates(event.offsetX, event.offsetY);
-        this.onHover(x, y);
+        // Removed hover call - no hover visual feedback
     }
 
     private handleMouseMove(event: MouseEvent): void {
@@ -94,18 +107,18 @@ export class MapInteractionHandler {
             }
             return;
         }
-        
+
         if ((isLeftButtonDown || isRightButtonDown) && this.isEditorMode()) {
             this.isPainting = true;
-            const { x, y } = this.cameraController.getMapCoordinates(event.offsetX, event.offsetY);
+            const canvasCoords = this.getCanvasCoordinates(event);
+            const { x, y } = this.cameraController.getMapCoordinates(canvasCoords.x, canvasCoords.y);
             this.onPaint(x, y, isRightButtonDown);
             return;
         }
-        
+
         this.isPanning = false;
         this.isPainting = false;
-        const { x, y } = this.cameraController.getMapCoordinates(event.offsetX, event.offsetY);
-        this.onHover(x, y);
+        // Removed hover call - no hover visual feedback
     }
 
     private handleMouseLeave(): void {
@@ -116,12 +129,10 @@ export class MapInteractionHandler {
 
     private handleWheel(event: WheelEvent): void {
         event.preventDefault();
-        const rect = this.canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
+        const canvasCoords = this.getCanvasCoordinates(event);
 
         const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
-        this.cameraController.zoom(mouseX, mouseY, zoomFactor);
+        this.cameraController.zoom(canvasCoords.x, canvasCoords.y, zoomFactor);
         this.onPanOrZoom();
     }
 

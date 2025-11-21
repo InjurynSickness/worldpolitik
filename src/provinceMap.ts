@@ -35,8 +35,7 @@ export class ProvinceMap {
     private terrainImage = new Image();
     private provinceImage = new Image();
     private riversImage = new Image();
-    
-    private lastHoveredProvince: Province | null = null;
+
     private selectedProvinceId: string | null = null;
     private mapReady = false;
     private politicalMapReady = false;
@@ -89,7 +88,7 @@ export class ProvinceMap {
         this.interactionHandler = new MapInteractionHandler(
             this.canvasManager.visibleCanvas,
             this.cameraController,
-            (x, y) => this.handleHover(x, y),
+            null,  // No hover callback - removed hover visual feedback
             (x, y) => this.handleClick(x, y),
             (x, y, isRightClick) => this.handlePaint(x, y, isRightClick),
             () => this.requestRender(),
@@ -259,20 +258,8 @@ export class ProvinceMap {
             console.log('[ProvinceMap] Province has no owner assigned');
         }
     }
-    
-    private handleHover(x: number, y: number): void {
-        if (!this.mapReady) return;
-        
-        const province = this.getProvinceAt(x, y);
 
-        if (province?.id !== this.lastHoveredProvince?.id) {
-            this.lastHoveredProvince = province;
-            this.drawOverlays();
-            this.requestRender();
-        }
-        
-        this.interactionHandler.updateCursor(province !== null && province.id !== 'OCEAN');
-    }
+    // Hover visual feedback removed - only click shows selection now
 
     private handlePaint(x: number, y: number, isRightClick: boolean): void {
         if (!this.mapReady) return;
@@ -445,7 +432,6 @@ export class ProvinceMap {
     public setEditorMode(enabled: boolean): void {
         this.isEditorMode = enabled;
         this.setSelectedCountry(null);
-        this.lastHoveredProvince = null;
         this.drawOverlays();
         this.requestRender();
     }
