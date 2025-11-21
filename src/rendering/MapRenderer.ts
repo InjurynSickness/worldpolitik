@@ -32,9 +32,9 @@ export class MapRenderer {
         ctx.drawImage(this.canvasManager.hiddenCanvas, 0, 0);
 
         // Draw political colors on top (ONLY where we have ownership data)
-        // This will blend with the provinces underneath
+        // Strong opacity for clear country colors
         ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 0.7;  // Semi-transparent so provinces show through
+        ctx.globalAlpha = 0.95;  // Strong political colors
         ctx.drawImage(this.canvasManager.politicalCanvas, 0, 0);
         ctx.globalAlpha = 1.0;
 

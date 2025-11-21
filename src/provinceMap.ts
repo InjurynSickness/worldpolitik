@@ -54,6 +54,9 @@ export class ProvinceMap {
     private pulseOpacity: number = 0.7;
     private pulseColor: string = "255, 255, 240";
 
+    // Render throttling to prevent lag on pan/zoom
+    private renderPending: boolean = false;
+
     constructor(container: HTMLElement, onCountrySelect: (countryId: string) => void, onMapReady?: () => void) {
         this.container = container;
         this.onCountrySelect = onCountrySelect;
@@ -89,7 +92,7 @@ export class ProvinceMap {
             (x, y) => this.handleHover(x, y),
             (x, y) => this.handleClick(x, y),
             (x, y, isRightClick) => this.handlePaint(x, y, isRightClick),
-            () => this.render(),
+            () => this.requestRender(),
             () => this.isEditorMode
         );
         
@@ -251,7 +254,7 @@ export class ProvinceMap {
             this.selectedProvinceId = province.id;
             this.startPulseAnimation();
             this.drawOverlays();
-            this.render();
+            this.requestRender();
         } else if (!countryId) {
             console.log('[ProvinceMap] Province has no owner assigned');
         }
@@ -265,7 +268,7 @@ export class ProvinceMap {
         if (province?.id !== this.lastHoveredProvince?.id) {
             this.lastHoveredProvince = province;
             this.drawOverlays();
-            this.render();
+            this.requestRender();
         }
         
         this.interactionHandler.updateCursor(province !== null && province.id !== 'OCEAN');
@@ -338,6 +341,17 @@ export class ProvinceMap {
         );
     }
 
+    // Throttled render using requestAnimationFrame to prevent lag
+    private requestRender(): void {
+        if (this.renderPending) return;
+        this.renderPending = true;
+
+        requestAnimationFrame(() => {
+            this.renderPending = false;
+            this.render();
+        });
+    }
+
     private render(): void {
         if (!this.mapReady) return;
         this.mapRenderer.render();
@@ -350,7 +364,7 @@ export class ProvinceMap {
             this.canvasManager.visibleCanvas.height
         );
         this.cameraController.constrainCamera();
-        this.render();
+        this.requestRender();
     }
 
     private buildPoliticalMap(): void {
@@ -425,7 +439,7 @@ export class ProvinceMap {
             this.stopPulseAnimation();
         }
         this.drawOverlays();
-        this.render();
+        this.requestRender();
     }
     
     public setEditorMode(enabled: boolean): void {
@@ -433,7 +447,7 @@ export class ProvinceMap {
         this.setSelectedCountry(null);
         this.lastHoveredProvince = null;
         this.drawOverlays();
-        this.render();
+        this.requestRender();
     }
 
     public setPaintCountry(countryId: string | null): void {
@@ -461,6 +475,6 @@ export class ProvinceMap {
     public async calculateLabels(): Promise<void> {
         this.countryLabelCache = await this.labelCalculator.calculateLabelsAsync(this.provinceOwnerMap);
         this.drawOverlays();
-        this.render();
+        this.requestRender();
     }
 }

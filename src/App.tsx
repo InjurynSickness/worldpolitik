@@ -95,12 +95,36 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
     setLoadingProgress(0);
     setLoadingMessage("INITIALIZING GAME");
 
-    // Smooth progress updates
-    setTimeout(() => { setLoadingProgress(20); setLoadingMessage("LOADING MAP DATA"); }, 100);
-    setTimeout(() => { setLoadingProgress(40); setLoadingMessage("INITIALIZING COUNTRIES"); }, 300);
-    setTimeout(() => { setLoadingProgress(60); setLoadingMessage("SETTING UP ECONOMY"); }, 600);
-    setTimeout(() => { setLoadingProgress(80); setLoadingMessage("PREPARING POLITICAL SYSTEMS"); }, 900);
-    setTimeout(() => { setLoadingProgress(95); setLoadingMessage("ALMOST READY"); }, 1200);
+    // Smooth progress animation from 0 to 95 (map reports 100 when ready)
+    const startTime = Date.now();
+    const progressDuration = 3000; // 3 seconds to reach 95%
+    const maxProgress = 95;
+
+    const animateProgress = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / progressDuration) * maxProgress, maxProgress);
+
+      setLoadingProgress(Math.floor(progress));
+
+      // Update message based on progress
+      if (progress < 20) {
+        setLoadingMessage("INITIALIZING GAME");
+      } else if (progress < 40) {
+        setLoadingMessage("LOADING MAP DATA");
+      } else if (progress < 60) {
+        setLoadingMessage("INITIALIZING COUNTRIES");
+      } else if (progress < 80) {
+        setLoadingMessage("SETTING UP ECONOMY");
+      } else {
+        setLoadingMessage("ALMOST READY");
+      }
+
+      if (progress < maxProgress) {
+        requestAnimationFrame(animateProgress);
+      }
+    };
+
+    requestAnimationFrame(animateProgress);
 
     setTimeout(() => {
         try {
