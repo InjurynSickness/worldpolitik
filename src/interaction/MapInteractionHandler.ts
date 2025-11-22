@@ -15,6 +15,17 @@ export class MapInteractionHandler {
     private mouseAtEdge = { left: false, right: false, top: false, bottom: false };
     private edgeScrollAnimationId: number | null = null;
 
+    // Event handler references for cleanup
+    private handlers = {
+        contextmenu: (e: MouseEvent) => e.preventDefault(),
+        mousedown: (e: MouseEvent) => this.handleMouseDown(e),
+        mouseup: (e: MouseEvent) => this.handleMouseUp(e),
+        mousemove: (e: MouseEvent) => this.handleMouseMove(e),
+        mouseleave: () => this.handleMouseLeave(),
+        wheel: (e: WheelEvent) => this.handleWheel(e),
+        keydown: (e: KeyboardEvent) => this.handleKeyDown(e)
+    };
+
     constructor(
         private canvas: HTMLCanvasElement,
         private cameraController: CameraController,
@@ -30,16 +41,15 @@ export class MapInteractionHandler {
     }
 
     private setupEventListeners(): void {
-        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-        this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
-        this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
-        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
-        this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
+        this.canvas.addEventListener('contextmenu', this.handlers.contextmenu);
+        this.canvas.addEventListener('mousedown', this.handlers.mousedown);
+        this.canvas.addEventListener('mouseup', this.handlers.mouseup);
+        this.canvas.addEventListener('mousemove', this.handlers.mousemove);
+        this.canvas.addEventListener('mouseleave', this.handlers.mouseleave);
+        this.canvas.addEventListener('wheel', this.handlers.wheel);
 
         // ESC key to deselect province
-        window.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        window.addEventListener('keydown', this.handlers.keydown);
     }
 
     private handleKeyDown(event: KeyboardEvent): void {
@@ -201,6 +211,14 @@ export class MapInteractionHandler {
             cancelAnimationFrame(this.edgeScrollAnimationId);
             this.edgeScrollAnimationId = null;
         }
-        // Event listeners are automatically cleaned up when canvas is removed
+
+        // Remove all event listeners
+        this.canvas.removeEventListener('contextmenu', this.handlers.contextmenu);
+        this.canvas.removeEventListener('mousedown', this.handlers.mousedown);
+        this.canvas.removeEventListener('mouseup', this.handlers.mouseup);
+        this.canvas.removeEventListener('mousemove', this.handlers.mousemove);
+        this.canvas.removeEventListener('mouseleave', this.handlers.mouseleave);
+        this.canvas.removeEventListener('wheel', this.handlers.wheel);
+        window.removeEventListener('keydown', this.handlers.keydown);
     }
 }

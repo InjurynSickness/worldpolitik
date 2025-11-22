@@ -25,6 +25,9 @@ export class GameLoop {
     private readonly BASE_TICK_RATE = 1000; // 1 second in milliseconds
     private tickAccumulator = 0;
 
+    // Keyboard event handler reference for cleanup
+    private keyboardHandler: ((e: KeyboardEvent) => void) | null = null;
+
     private constructor() {
         logger.info('GameLoop', 'Game loop initialized');
         this.setupKeyboardControls();
@@ -210,7 +213,7 @@ export class GameLoop {
      * Setup keyboard controls for speed
      */
     private setupKeyboardControls(): void {
-        window.addEventListener('keydown', (e) => {
+        this.keyboardHandler = (e: KeyboardEvent) => {
             // Space = pause/unpause
             if (e.code === 'Space' && !e.repeat) {
                 e.preventDefault();
@@ -232,9 +235,23 @@ export class GameLoop {
                 const speedNum = parseInt(e.code.slice(-1));
                 this.setSpeed(speedNum as GameSpeed);
             }
-        });
+        };
 
+        window.addEventListener('keydown', this.keyboardHandler);
         logger.debug('GameLoop', 'Keyboard controls setup: Space=pause, +/-=speed, 1-4=specific speed');
+    }
+
+    /**
+     * Clean up resources (remove event listeners)
+     */
+    public cleanup(): void {
+        this.stop();
+
+        if (this.keyboardHandler) {
+            window.removeEventListener('keydown', this.keyboardHandler);
+            this.keyboardHandler = null;
+            logger.debug('GameLoop', 'Keyboard controls cleaned up');
+        }
     }
 }
 

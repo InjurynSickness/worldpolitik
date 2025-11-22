@@ -15,6 +15,7 @@ import { PoliticalMapBuilder } from './political/PoliticalMapBuilder.js';
 import { BorderMapBuilder } from './borders/BorderMapBuilder.js';
 import { CountryEditor } from './editor/CountryEditor.js';
 import { ProvinceSelector } from './editor/ProvinceSelector.js';
+import { BorderGenerator } from './rendering/BorderGenerator.js';
 import { logger } from './utils/Logger.js';
 
 const MAP_WIDTH = 5632;  // HOI4 map dimensions
@@ -449,136 +450,22 @@ export class ProvinceMap {
 
     // Generate border pixels for a specific province (on-demand, cached)
     private generateProvinceBorders(provinceId: string): [number, number][] {
-        logger.debug('ProvinceMap', `Generating borders for province: ${provinceId}`);
-        const borders: [number, number][] = [];
         const imageData = this.canvasManager.hiddenCtx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT);
-        const data = imageData.data;
-
-        // Find target province color
-        let targetColor: string | null = null;
-        for (const [colorKey, province] of provinceColorMap.entries()) {
-            if (province.id === provinceId) {
-                targetColor = colorKey;
-                break;
-            }
-        }
-
-        if (!targetColor) return borders;
-
-        const [targetR, targetG, targetB] = targetColor.split(',').map(Number);
-
-        // Scan pixels and find edges
-        for (let y = 0; y < MAP_HEIGHT; y++) {
-            for (let x = 0; x < MAP_WIDTH; x++) {
-                const idx = (y * MAP_WIDTH + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-
-                // Check if this pixel is part of our province
-                if (r === targetR && g === targetG && b === targetB) {
-                    // Check if any neighbor is a different province (edge detection)
-                    let isEdge = false;
-                    for (let dy = -1; dy <= 1 && !isEdge; dy++) {
-                        for (let dx = -1; dx <= 1 && !isEdge; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-
-                            const nx = x + dx;
-                            const ny = y + dy;
-
-                            if (nx >= 0 && nx < MAP_WIDTH && ny >= 0 && ny < MAP_HEIGHT) {
-                                const nidx = (ny * MAP_WIDTH + nx) * 4;
-                                const nr = data[nidx];
-                                const ng = data[nidx + 1];
-                                const nb = data[nidx + 2];
-
-                                if (nr !== targetR || ng !== targetG || nb !== targetB) {
-                                    isEdge = true;
-                                }
-                            }
-                        }
-                    }
-
-                    if (isEdge) {
-                        borders.push([x, y]);
-                    }
-                }
-            }
-        }
-
-        logger.debug('ProvinceMap', `Generated ${borders.length} border pixels for province ${provinceId}`);
-        return borders;
+        return BorderGenerator.generateProvinceBorders(provinceId, imageData, MAP_WIDTH, MAP_HEIGHT);
     }
 
     // Generate country borders - detects where different countries meet
     // This is regenerated when territories change (war, peace treaties, etc.)
     // NOTE: Does NOT draw borders between countries and water/ocean
     private generateCountryBorders(): void {
-        const startTime = performance.now();
-        logger.debug('ProvinceMap', 'Generating country borders...');
-
-        this.countryBorders = [];
         this.countryBordersReady = false;
 
         // Get the political map image data (country colors)
         const imageData = this.canvasManager.politicalCtx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT);
-        const data = imageData.data;
 
-        let borderPixels = 0;
-
-        // Scan pixels and find where different countries meet
-        for (let y = 0; y < MAP_HEIGHT; y++) {
-            for (let x = 0; x < MAP_WIDTH; x++) {
-                const idx = (y * MAP_WIDTH + x) * 4;
-                const r = data[idx];
-                const g = data[idx + 1];
-                const b = data[idx + 2];
-                const a = data[idx + 3];
-
-                // Skip transparent pixels (water/ocean - no country)
-                if (a === 0) continue;
-
-                const currentColor = `${r},${g},${b}`;
-
-                // Check 4-directional neighbors (faster than 8-directional)
-                const neighbors = [
-                    [x + 1, y],  // Right
-                    [x, y + 1],  // Down
-                ];
-
-                let isDifferentCountry = false;
-
-                for (const [nx, ny] of neighbors) {
-                    if (nx >= 0 && nx < MAP_WIDTH && ny >= 0 && ny < MAP_HEIGHT) {
-                        const nidx = (ny * MAP_WIDTH + nx) * 4;
-                        const nr = data[nidx];
-                        const ng = data[nidx + 1];
-                        const nb = data[nidx + 2];
-                        const na = data[nidx + 3];
-
-                        // ONLY draw borders between actual countries (both have alpha > 0)
-                        // Skip borders between countries and water (na === 0)
-                        if (na > 0) {
-                            const neighborColor = `${nr},${ng},${nb}`;
-                            if (currentColor !== neighborColor) {
-                                isDifferentCountry = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (isDifferentCountry) {
-                    this.countryBorders.push([x, y]);
-                    borderPixels++;
-                }
-            }
-        }
-
+        // Use BorderGenerator to generate borders
+        this.countryBorders = BorderGenerator.generateCountryBorders(imageData, MAP_WIDTH, MAP_HEIGHT);
         this.countryBordersReady = true;
-
-        const elapsed = performance.now() - startTime;
-        logger.info('ProvinceMap', `✓ Country borders generated: ${borderPixels} border pixels (land-only) in ${elapsed.toFixed(0)}ms`);
     }
 
     // Throttled render using requestAnimationFrame to prevent lag

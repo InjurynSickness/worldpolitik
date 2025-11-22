@@ -17,9 +17,18 @@ import { gameLoop } from './core/GameLoop.js';
 import { logger } from './utils/Logger.js';
 import { TimeControls } from './components/TimeControls.js';
 
+// Guard to prevent multiple initializations (React StrictMode calls twice in dev)
+let gameInitialized = false;
+
 export function initializeFullGame(): void {
+    if (gameInitialized) {
+        logger.warn('gameInit', '⚠️ Game already initialized, skipping duplicate initialization');
+        return;
+    }
+
     try {
         logger.info('gameInit', '🎮 Initializing full game...');
+        gameInitialized = true;
 
         // 0. Initialize core systems FIRST
         logger.info('gameInit', 'Initializing core systems...');
