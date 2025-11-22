@@ -13,6 +13,8 @@ import { LabelRenderer } from './labels/LabelRenderer.js';
 import { MapEditor } from './editor/MapEditor.js';
 import { PoliticalMapBuilder } from './political/PoliticalMapBuilder.js';
 import { BorderMapBuilder } from './borders/BorderMapBuilder.js';
+import { CountryEditor } from './editor/CountryEditor.js';
+import { ProvinceSelector } from './editor/ProvinceSelector.js';
 
 const MAP_WIDTH = 5632;  // HOI4 map dimensions
 const MAP_HEIGHT = 2048;
@@ -31,6 +33,10 @@ export class ProvinceMap {
     private mapEditor: MapEditor;
     private politicalMapBuilder: PoliticalMapBuilder;
     private borderMapBuilder: BorderMapBuilder;
+
+    // New comprehensive country editor
+    private countryEditor: CountryEditor | null = null;
+    private provinceSelector: ProvinceSelector | null = null;
 
     private terrainImage = new Image();
     private provinceImage = new Image();
@@ -269,6 +275,16 @@ export class ProvinceMap {
             return;
         }
 
+        // If in editor mode, handle editor province selection
+        if (this.isEditorMode && this.provinceSelector && this.countryEditor) {
+            // Province selector will handle the selection
+            // The EditorPanel UI will react to this selection via the editor's state
+            this.countryEditor.selectProvince(province.id);
+            console.log('[ProvinceMap] Editor mode: selected province', province.id);
+            return;
+        }
+
+        // Normal game mode: select country
         // Look up which country owns this province
         const countryId = this.provinceOwnerMap.get(province.id);
         console.log('[ProvinceMap] Province owner:', countryId);
@@ -594,6 +610,14 @@ export class ProvinceMap {
         console.log("Loading province owner map...");
         this.provinceOwnerMap = new Map(ownerMap);
 
+        // Initialize CountryEditor with current map data
+        if (this.allCountryData.size > 0) {
+            console.log('[ProvinceMap] Initializing CountryEditor...');
+            this.countryEditor = new CountryEditor(this.allCountryData, this.provinceOwnerMap);
+            this.provinceSelector = new ProvinceSelector(MAP_WIDTH, MAP_HEIGHT);
+            console.log('[ProvinceMap] CountryEditor initialized');
+        }
+
         if (this.mapReady) {
             this.buildPoliticalMap();
             this.generateCountryBorders();  // Regenerate borders when territories change
@@ -643,5 +667,49 @@ export class ProvinceMap {
         this.countryLabelCache = await this.labelCalculator.calculateLabelsAsync(this.provinceOwnerMap);
         this.drawOverlays();
         this.requestRender();
+    }
+
+    // Country Editor integration
+    public getCountryEditor(): CountryEditor | null {
+        return this.countryEditor;
+    }
+
+    public getProvinceSelector(): ProvinceSelector | null {
+        return this.provinceSelector;
+    }
+
+    /**
+     * Rebuild the political map from the editor state
+     * Call this when editor makes changes to countries or provinces
+     */
+    public rebuildFromEditor(): void {
+        if (!this.countryEditor) {
+            console.error('[ProvinceMap] No CountryEditor initialized');
+            return;
+        }
+
+        const editorState = this.countryEditor.getState();
+
+        // Update province owner map from editor
+        this.provinceOwnerMap = new Map(editorState.provinceOwners);
+
+        // Update country data from editor
+        const updatedCountryData = new Map<string, CountryData>();
+        for (const country of this.countryEditor.getAllCountries()) {
+            updatedCountryData.set(country.tag, {
+                name: country.name,
+                color: country.color
+            });
+        }
+        this.allCountryData = updatedCountryData;
+
+        // Rebuild the map
+        console.log('[ProvinceMap] Rebuilding political map from editor changes...');
+        this.buildPoliticalMap();
+        this.generateCountryBorders();
+        this.buildBorderMap();
+        this.drawOverlays();
+        this.requestRender();
+        console.log('[ProvinceMap] Map rebuilt successfully');
     }
 }

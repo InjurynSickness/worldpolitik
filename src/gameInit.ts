@@ -1,6 +1,8 @@
 // /src/gameInit.ts
 // This file handles the complete game initialization including canvas, rendering, and game loop
 
+import React from 'react';
+import ReactDOM from 'react-dom/client';
 import { GameEngine } from './game/GameEngine.js';
 import { GameStateInitializer } from './game/GameStateInitializer.js';
 import { UIManager } from './ui/UIManager.js';
@@ -8,6 +10,7 @@ import { SaveLoadManager } from './game/SaveLoadManager.js';
 import { ProvinceMap } from './provinceMap.js';
 import { provinceToCountryMap } from './provinceAssignments.js';
 import { countryData } from './countryData.js';
+import { EditorOverlay } from './components/EditorOverlay.js';
 
 export function initializeFullGame(): void {
     try {
@@ -91,6 +94,9 @@ export function initializeFullGame(): void {
 
         // 8. Setup UI elements (create them if they don't exist)
         createGameUI();
+
+        // 8b. Mount React EditorOverlay component
+        mountEditorOverlay(provinceMap);
 
         // 9. Setup UI callbacks
         uiManager.setupUI(
@@ -244,4 +250,32 @@ function createGameUI(): void {
         }
     `;
     document.head.appendChild(style);
+}
+
+/**
+ * Mount the EditorOverlay React component into the game UI
+ */
+function mountEditorOverlay(provinceMap: ProvinceMap): void {
+    console.log('[GameInit] Mounting EditorOverlay...');
+
+    // Create a container for the React editor overlay
+    let editorContainer = document.getElementById('editor-overlay-container');
+    if (!editorContainer) {
+        editorContainer = document.createElement('div');
+        editorContainer.id = 'editor-overlay-container';
+        editorContainer.style.position = 'fixed';
+        editorContainer.style.top = '0';
+        editorContainer.style.left = '0';
+        editorContainer.style.width = '100%';
+        editorContainer.style.height = '100%';
+        editorContainer.style.pointerEvents = 'none'; // Let clicks pass through
+        editorContainer.style.zIndex = '100'; // Above game UI
+        document.body.appendChild(editorContainer);
+    }
+
+    // Render the EditorOverlay React component
+    const root = ReactDOM.createRoot(editorContainer);
+    root.render(React.createElement(EditorOverlay, { provinceMap }));
+
+    console.log('[GameInit] EditorOverlay mounted successfully');
 }
