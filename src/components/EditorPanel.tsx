@@ -1,5 +1,5 @@
 // Country/Province Editor Panel - React UI Component
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -34,6 +34,19 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
     // Selected province owner change
     const [selectedOwnerChange, setSelectedOwnerChange] = useState('');
+
+    // Country search filter for performance
+    const [countrySearchFilter, setCountrySearchFilter] = useState('');
+
+    // Filtered countries list (memoized for performance)
+    const filteredCountries = React.useMemo(() => {
+        if (!countrySearchFilter) return countries;
+        const search = countrySearchFilter.toLowerCase();
+        return countries.filter(c =>
+            c.tag.toLowerCase().includes(search) ||
+            c.name.toLowerCase().includes(search)
+        );
+    }, [countries, countrySearchFilter]);
 
     // Update state when editor changes
     // NOTE: Don't call onMapUpdate() here - it causes lag by rebuilding the entire map
@@ -99,6 +112,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
         editor.assignProvince(selectedProvince, newOwner);
         setSelectedOwnerChange('');
+        setCountrySearchFilter(''); // Clear search after selection
         onMapUpdate(); // Rebuild map after province assignment
     };
 
@@ -106,6 +120,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         const provinces = Array.from(state.selectedProvinces);
         editor.assignProvinces(provinces, newOwner);
         setSelectedOwnerChange('');
+        setCountrySearchFilter(''); // Clear search after selection
         onMapUpdate(); // Rebuild map after bulk assignment
     };
 
@@ -146,6 +161,29 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         editor.deleteCountry(tag);
         // No map update needed - country has no provinces
     };
+
+    const handleRenameCountry = (tag: string, newName: string) => {
+        if (!newName.trim()) {
+            alert('Country name cannot be empty');
+            return;
+        }
+        editor.renameCountry(tag, newName.trim());
+        // No map update needed - names don't affect rendering
+    };
+
+    // Debounced color change to prevent lag when dragging color picker
+    const colorChangeTimeoutRef = useRef<number | null>(null);
+    const handleColorChangeDebounced = useCallback((tag: string, color: string) => {
+        // Clear previous timeout
+        if (colorChangeTimeoutRef.current) {
+            clearTimeout(colorChangeTimeoutRef.current);
+        }
+
+        // Debounce the map rebuild (wait 150ms after user stops dragging)
+        colorChangeTimeoutRef.current = window.setTimeout(() => {
+            handleColorChange(tag, color);
+        }, 150);
+    }, []);
 
     return (
         <div
@@ -230,12 +268,18 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                                 <div>
                                     <Label className="text-sm mb-2">Change Owner</Label>
+                                    <Input
+                                        placeholder="Search countries..."
+                                        value={countrySearchFilter}
+                                        onChange={(e) => setCountrySearchFilter(e.target.value)}
+                                        className="mb-2 bg-slate-700 border-slate-600"
+                                    />
                                     <Select value={selectedOwnerChange} onValueChange={handleChangeProvinceOwner}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select country..." />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            {countries.map(country => (
+                                        <SelectContent className="max-h-[300px]">
+                                            {filteredCountries.slice(0, 50).map(country => (
                                                 <SelectItem key={country.tag} value={country.tag}>
                                                     <div className="flex items-center gap-2">
                                                         <div
@@ -246,6 +290,11 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                                     </div>
                                                 </SelectItem>
                                             ))}
+                                            {filteredCountries.length > 50 && (
+                                                <div className="text-xs text-slate-400 p-2 text-center">
+                                                    Showing 50 of {filteredCountries.length} - refine search
+                                                </div>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -274,12 +323,18 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                             <CardContent className="space-y-3">
                                 <div>
                                     <Label className="text-sm mb-2">Assign All To</Label>
+                                    <Input
+                                        placeholder="Search countries..."
+                                        value={countrySearchFilter}
+                                        onChange={(e) => setCountrySearchFilter(e.target.value)}
+                                        className="mb-2 bg-slate-700 border-slate-600"
+                                    />
                                     <Select value={selectedOwnerChange} onValueChange={handleBulkChangeOwner}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select country..." />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            {countries.map(country => (
+                                        <SelectContent className="max-h-[300px]">
+                                            {filteredCountries.slice(0, 50).map(country => (
                                                 <SelectItem key={country.tag} value={country.tag}>
                                                     <div className="flex items-center gap-2">
                                                         <div
@@ -290,6 +345,11 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                                     </div>
                                                 </SelectItem>
                                             ))}
+                                            {filteredCountries.length > 50 && (
+                                                <div className="text-xs text-slate-400 p-2 text-center">
+                                                    Showing 50 of {filteredCountries.length} - refine search
+                                                </div>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -311,7 +371,12 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                                 <div>
                                     <Label className="text-xs text-slate-400">Name</Label>
-                                    <div>{selectedCountryData.name}</div>
+                                    <Input
+                                        value={selectedCountryData.name}
+                                        onChange={(e) => handleRenameCountry(selectedCountryData.tag, e.target.value)}
+                                        className="bg-slate-700 border-slate-600"
+                                        placeholder="Country name"
+                                    />
                                 </div>
 
                                 <div>
@@ -320,7 +385,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                         <input
                                             type="color"
                                             value={selectedCountryData.color}
-                                            onChange={(e) => handleColorChange(selectedCountryData.tag, e.target.value)}
+                                            onChange={(e) => handleColorChangeDebounced(selectedCountryData.tag, e.target.value)}
                                             className="w-12 h-8 rounded cursor-pointer"
                                         />
                                         <span className="font-mono">{selectedCountryData.color}</span>
