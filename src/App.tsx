@@ -289,7 +289,7 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
 
   return (
     <>
-      {renderView()}
+      {!showFigmaLoading && renderView()}
       {showFigmaLoading && (
         <div className="fixed inset-0 z-50">
           <FigmaLoadingScreen

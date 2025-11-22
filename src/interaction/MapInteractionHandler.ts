@@ -8,6 +8,13 @@ export class MapInteractionHandler {
     private lastMousePos = { x: 0, y: 0 };
     private dragThreshold = 5;
 
+    // Edge scrolling (HOI4-style)
+    private edgeScrollEnabled = true;
+    private edgeScrollThreshold = 20; // pixels from edge to trigger scroll
+    private edgeScrollSpeed = 8; // pixels per frame
+    private mouseAtEdge = { left: false, right: false, top: false, bottom: false };
+    private edgeScrollAnimationId: number | null = null;
+
     constructor(
         private canvas: HTMLCanvasElement,
         private cameraController: CameraController,
@@ -18,6 +25,7 @@ export class MapInteractionHandler {
         private isEditorMode: () => boolean
     ) {
         this.setupEventListeners();
+        this.startEdgeScrollLoop();
     }
 
     private setupEventListeners(): void {
@@ -81,6 +89,18 @@ export class MapInteractionHandler {
         const isLeftButtonDown = event.buttons === 1;
         const isMiddleButtonDown = event.buttons === 4;
 
+        // Update edge scroll detection (HOI4-style - detect mouse near screen edges)
+        if (this.edgeScrollEnabled && !isLeftButtonDown && !isMiddleButtonDown) {
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouseAtEdge.left = event.clientX - rect.left < this.edgeScrollThreshold;
+            this.mouseAtEdge.right = rect.right - event.clientX < this.edgeScrollThreshold;
+            this.mouseAtEdge.top = event.clientY - rect.top < this.edgeScrollThreshold;
+            this.mouseAtEdge.bottom = rect.bottom - event.clientY < this.edgeScrollThreshold;
+        } else {
+            // Disable edge scroll while dragging
+            this.mouseAtEdge = { left: false, right: false, top: false, bottom: false };
+        }
+
         // Allow panning with left or middle mouse button (in all modes including editor)
         if (isLeftButtonDown || isMiddleButtonDown) {
             const dx = Math.abs(event.clientX - this.lastMousePos.x);
@@ -117,13 +137,42 @@ export class MapInteractionHandler {
         this.isPanning = false;
         this.isPainting = false;
         this.canvas.style.cursor = 'grab';
+        // Reset edge scroll when mouse leaves canvas
+        this.mouseAtEdge = { left: false, right: false, top: false, bottom: false };
+    }
+
+    // Edge scroll loop - runs continuously and pans camera when mouse is near edges
+    private startEdgeScrollLoop(): void {
+        const edgeScrollFrame = () => {
+            // Check if any edge is active
+            const isScrolling = this.mouseAtEdge.left || this.mouseAtEdge.right ||
+                               this.mouseAtEdge.top || this.mouseAtEdge.bottom;
+
+            if (isScrolling && !this.isPanning) {
+                let deltaX = 0;
+                let deltaY = 0;
+
+                if (this.mouseAtEdge.left) deltaX = this.edgeScrollSpeed;
+                if (this.mouseAtEdge.right) deltaX = -this.edgeScrollSpeed;
+                if (this.mouseAtEdge.top) deltaY = this.edgeScrollSpeed;
+                if (this.mouseAtEdge.bottom) deltaY = -this.edgeScrollSpeed;
+
+                this.cameraController.pan(deltaX, deltaY);
+                this.onPanOrZoom();
+            }
+
+            this.edgeScrollAnimationId = requestAnimationFrame(edgeScrollFrame);
+        };
+
+        this.edgeScrollAnimationId = requestAnimationFrame(edgeScrollFrame);
     }
 
     private handleWheel(event: WheelEvent): void {
         event.preventDefault();
         const canvasCoords = this.getCanvasCoordinates(event);
 
-        const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+        // Smoother zoom feel - smaller increments for better control (HOI4-style)
+        const zoomFactor = event.deltaY > 0 ? 0.95 : 1.05;
         this.cameraController.zoom(canvasCoords.x, canvasCoords.y, zoomFactor);
         this.onPanOrZoom();
     }
@@ -137,6 +186,11 @@ export class MapInteractionHandler {
     }
 
     public destroy(): void {
+        // Stop edge scroll animation
+        if (this.edgeScrollAnimationId !== null) {
+            cancelAnimationFrame(this.edgeScrollAnimationId);
+            this.edgeScrollAnimationId = null;
+        }
         // Event listeners are automatically cleaned up when canvas is removed
     }
 }
