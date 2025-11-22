@@ -8,6 +8,7 @@ import { ImageWithFallback } from './menu-ui/components/figma/ImageWithFallback'
 import { FigmaLoadingScreen } from './menu-ui/components/FigmaLoadingScreen';
 // --- IMPORT GAME TYPES ---
 import { LoadingScreen } from './loadingScreen.js';
+import { logger } from './utils/Logger.js';
 
 // --- Define the props App will receive from main.tsx ---
 interface AppProps {
@@ -17,10 +18,21 @@ interface AppProps {
 
 // --- App component ---
 export default function App({ initializeGame, loadingScreen }: AppProps) {
+  logger.info('App', '🎮 App component mounting');
+
   const [currentView, setCurrentView] = React.useState('main-menu');
   const [showFigmaLoading, setShowFigmaLoading] = React.useState(false);
   const [loadingProgress, setLoadingProgress] = React.useState(0);
   const [loadingMessage, setLoadingMessage] = React.useState('');
+
+  // Show debug panel on component mount
+  React.useEffect(() => {
+    logger.info('App', '📱 App component mounted');
+    logger.showDebugPanel(); // Auto-show debug panel
+    return () => {
+      logger.info('App', '📴 App component unmounting');
+    };
+  }, []);
 
   const onSinglePlayer = () => {
     setCurrentView('single-player');
@@ -33,7 +45,10 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
 
   // Called when user selects a country from the portrait screen
   const onSelectFromPortraits = (country: any) => {
+    logger.info('App', `User selected country from portraits`, { countryId: country.id });
+
     if (country.id === 'other') {
+      logger.info('App', 'Loading interactive country selection map');
       // User wants to select from all 192 countries - show interactive map
       setShowFigmaLoading(true);
       setLoadingProgress(0);
@@ -50,6 +65,7 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
       setTimeout(() => { setLoadingProgress(90); setLoadingMessage("ALMOST READY"); }, 2700);
       // Will jump to 100% when map calls onMapLoadingProgress(100)
     } else {
+      logger.info('App', `Starting game with major nation: ${country.id}`);
       // User selected a major nation - start game directly
       onStartGame(country.id);
     }
@@ -63,9 +79,10 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
 
   // Called when the InteractiveCountrySelection map is fully loaded
   const onCountrySelectionMapReady = () => {
-    console.log("Country selection map is fully ready");
+    logger.info('App', '✅ Country selection map is fully ready');
     // InteractiveCountrySelection already set progress to 100%, just hide after brief delay
     setTimeout(() => {
+      logger.info('App', 'Hiding loading screen for country selection');
       setShowFigmaLoading(false);
     }, 300);
   };
@@ -85,12 +102,13 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
   // --- START GAME function ---
   // This gets passed to InteractiveCountrySelection
   const onStartGame = (countryId: string) => {
-    console.log("Start Game clicked with country ID:", countryId);
+    logger.info('App', '🎯 START GAME CALLED', { countryId });
 
     // Store the selected country ID so we can set it after initialization
     const selectedCountryId = countryId;
 
     // Show Figma loading screen
+    logger.info('App', 'Showing Figma loading screen');
     setShowFigmaLoading(true);
     setLoadingProgress(0);
     setLoadingMessage("INITIALIZING GAME");
@@ -128,58 +146,65 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
 
     setTimeout(() => {
         try {
-          console.log("Calling initializeGame()...");
+          logger.info('App', '🚀 About to call initializeGame()');
 
           // Set up callback for when map is ready
           (window as any).onMapReady = () => {
-            console.log("Map ready - hiding loading screen");
+            logger.info('App', '✅ onMapReady callback triggered - Map is ready!');
 
             // Set the player's selected country
             if ((window as any).gameEngine) {
               const gameState = (window as any).gameEngine.getGameState();
               gameState.selectedCountryId = selectedCountryId;
-              console.log("Player is now playing as:", selectedCountryId);
+              logger.info('App', `Player is now playing as: ${selectedCountryId}`);
 
               // Update UI to show the selected country's info
               if ((window as any).uiManager) {
                 (window as any).uiManager.updateCountryInfo();
+                logger.debug('App', 'UI updated with country info');
               }
+            } else {
+              logger.warn('App', 'gameEngine not found on window object');
             }
 
             setLoadingProgress(100);
             setLoadingMessage("DONE!");
 
             setTimeout(() => {
+              logger.info('App', 'Hiding loading screen and React UI');
               setShowFigmaLoading(false);
               // Hide React UI
               const root = document.getElementById('root');
               if (root) (root as HTMLElement).style.display = 'none';
               // Clean up callback
               delete (window as any).onMapReady;
+              logger.info('App', '🎮 Game fully loaded and running!');
             }, 300);
           };
 
           // Safety timeout - if map doesn't load in 15 seconds, show error
           const safetyTimeout = setTimeout(() => {
-            console.error("Map loading timed out after 15 seconds");
+            logger.error('App', '⏱️ MAP LOADING TIMED OUT after 15 seconds');
             setShowFigmaLoading(false);
-            alert("Map loading took too long. Please check the console for errors and try refreshing.");
+            alert("Map loading took too long. Press F3 to see debug logs, then copy and share them.");
             delete (window as any).onMapReady;
           }, 15000);
 
           // Clear safety timeout when map loads
           const originalOnMapReady = (window as any).onMapReady;
           (window as any).onMapReady = () => {
+            logger.debug('App', 'Clearing safety timeout');
             clearTimeout(safetyTimeout);
             originalOnMapReady();
           };
 
+          logger.info('App', '⏳ Calling initializeGame()...');
           initializeGame(); // Creates window.gameEngine and starts loading map
-          console.log("initializeGame() completed successfully - waiting for map to load...");
+          logger.info('App', '✅ initializeGame() call completed - waiting for map to load...');
         } catch (error) {
-          console.error("Error initializing game:", error);
+          logger.error('App', '❌ CRITICAL ERROR initializing game', error);
           setShowFigmaLoading(false);
-          alert("Failed to initialize game. Check console for details.\n\n" + error);
+          alert("Failed to initialize game. Press F3 to see debug logs.\n\n" + error);
           delete (window as any).onMapReady;
         }
     }, 1500);

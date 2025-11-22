@@ -89,20 +89,45 @@ export class Logger {
     private updateDebugPanel(): void {
         if (!this.debugPanel) return;
 
-        const recentLogs = this.logs.slice(-20); // Show last 20 logs
+        const recentLogs = this.logs.slice(-50); // Show last 50 logs (increased from 20)
         this.debugPanel.innerHTML = `
-            <div style="margin-bottom: 8px; border-bottom: 1px solid #00ff00; padding-bottom: 4px;">
+            <div style="margin-bottom: 8px; border-bottom: 1px solid #00ff00; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
                 <strong>DEBUG PANEL</strong> (F3 to toggle) | ${this.logs.length} logs
+                <button id="copy-logs-btn" style="background: #00ff00; color: black; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 10px; font-weight: bold;">
+                    COPY ALL
+                </button>
             </div>
-            ${recentLogs.map(log => {
-                const color = this.getColorForLevel(log.level);
-                const time = new Date(log.timestamp).toLocaleTimeString();
-                return `<div style="color: ${color}; margin-bottom: 2px;">
-                    [${time}] [${log.category}] ${log.message}
-                    ${log.data ? '<pre style="margin: 2px 0; font-size: 10px;">' + JSON.stringify(log.data, null, 2) + '</pre>' : ''}
-                </div>`;
-            }).join('')}
+            <div style="user-select: text; cursor: text;">
+                ${recentLogs.map(log => {
+                    const color = this.getColorForLevel(log.level);
+                    const time = new Date(log.timestamp).toLocaleTimeString();
+                    return `<div style="color: ${color}; margin-bottom: 2px;">
+                        [${time}] [${log.category}] ${log.message}
+                        ${log.data ? '<pre style="margin: 2px 0; font-size: 10px; user-select: text;">' + JSON.stringify(log.data, null, 2) + '</pre>' : ''}
+                    </div>`;
+                }).join('')}
+            </div>
         `;
+
+        // Add copy button handler
+        const copyBtn = this.debugPanel.querySelector('#copy-logs-btn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                const logText = this.logs.map(log => {
+                    const time = new Date(log.timestamp).toLocaleTimeString();
+                    const levelName = LogLevel[log.level];
+                    const dataStr = log.data ? '\n' + JSON.stringify(log.data, null, 2) : '';
+                    return `[${time}] [${levelName}] [${log.category}] ${log.message}${dataStr}`;
+                }).join('\n');
+
+                navigator.clipboard.writeText(logText).then(() => {
+                    copyBtn.textContent = 'COPIED!';
+                    setTimeout(() => {
+                        copyBtn.textContent = 'COPY ALL';
+                    }, 2000);
+                });
+            });
+        }
 
         // Auto-scroll to bottom
         this.debugPanel.scrollTop = this.debugPanel.scrollHeight;
