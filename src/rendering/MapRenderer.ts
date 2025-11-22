@@ -65,8 +65,8 @@ export class MapRenderer {
             this.terrainDebugLogged = true;
         }
 
-        ctx.globalCompositeOperation = 'multiply';  // Darken terrain with political colors
-        ctx.globalAlpha = 0.5;  // More visible terrain overlay
+        ctx.globalCompositeOperation = 'overlay';  // Overlay makes terrain features pop
+        ctx.globalAlpha = 0.7;  // Strong terrain overlay for good contrast
         ctx.drawImage(this.canvasManager.processedTerrainCanvas, 0, 0);
         ctx.globalAlpha = 1.0;
         ctx.globalCompositeOperation = 'source-over';  // Reset blend mode
