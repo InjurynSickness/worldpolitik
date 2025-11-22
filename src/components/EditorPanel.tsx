@@ -36,17 +36,18 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
     const [selectedOwnerChange, setSelectedOwnerChange] = useState('');
 
     // Update state when editor changes
+    // NOTE: Don't call onMapUpdate() here - it causes lag by rebuilding the entire map
+    // on every state change (including province selection). Only rebuild when data actually changes.
     useEffect(() => {
         const unsubscribe = editor.subscribe(() => {
             setState(editor.getState());
             setCountries(editor.getAllCountries());
-            onMapUpdate();
         });
 
         setCountries(editor.getAllCountries());
 
         return unsubscribe;
-    }, [editor, onMapUpdate]);
+    }, [editor]);
 
     if (!isOpen) {
         return null;
@@ -98,12 +99,14 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
         editor.assignProvince(selectedProvince, newOwner);
         setSelectedOwnerChange('');
+        onMapUpdate(); // Rebuild map after province assignment
     };
 
     const handleBulkChangeOwner = (newOwner: string) => {
         const provinces = Array.from(state.selectedProvinces);
         editor.assignProvinces(provinces, newOwner);
         setSelectedOwnerChange('');
+        onMapUpdate(); // Rebuild map after bulk assignment
     };
 
     const handleExportData = () => {
@@ -131,6 +134,17 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
     const handleColorChange = (tag: string, color: string) => {
         editor.changeCountryColor(tag, color);
+        onMapUpdate(); // Rebuild map after color change
+    };
+
+    const handleUnassignProvince = (provinceId: string) => {
+        editor.unassignProvince(provinceId);
+        onMapUpdate(); // Rebuild map after unassigning province
+    };
+
+    const handleDeleteCountry = (tag: string) => {
+        editor.deleteCountry(tag);
+        // No map update needed - country has no provinces
     };
 
     return (
@@ -240,7 +254,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                     size="sm"
                                     variant="destructive"
                                     className="w-full"
-                                    onClick={() => editor.unassignProvince(selectedProvince)}
+                                    onClick={() => handleUnassignProvince(selectedProvince)}
                                 >
                                     Unassign Province
                                 </Button>
@@ -328,7 +342,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                         if (selectedCountryData.provinces.size > 0) {
                                             alert('Cannot delete country with assigned provinces. Unassign all provinces first.');
                                         } else if (confirm(`Delete ${selectedCountryData.name}?`)) {
-                                            editor.deleteCountry(selectedCountryData.tag);
+                                            handleDeleteCountry(selectedCountryData.tag);
                                         }
                                     }}
                                     disabled={selectedCountryData.provinces.size > 0}

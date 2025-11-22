@@ -454,6 +454,7 @@ export class ProvinceMap {
 
     // Generate country borders - detects where different countries meet
     // This is regenerated when territories change (war, peace treaties, etc.)
+    // NOTE: Does NOT draw borders between countries and water/ocean
     private generateCountryBorders(): void {
         const startTime = performance.now();
         console.log('[ProvinceMap] Generating country borders...');
@@ -476,7 +477,7 @@ export class ProvinceMap {
                 const b = data[idx + 2];
                 const a = data[idx + 3];
 
-                // Skip transparent pixels (no country)
+                // Skip transparent pixels (water/ocean - no country)
                 if (a === 0) continue;
 
                 const currentColor = `${r},${g},${b}`;
@@ -497,11 +498,14 @@ export class ProvinceMap {
                         const nb = data[nidx + 2];
                         const na = data[nidx + 3];
 
-                        // Different country if different color or neighbor is transparent
-                        const neighborColor = `${nr},${ng},${nb}`;
-                        if (na === 0 || currentColor !== neighborColor) {
-                            isDifferentCountry = true;
-                            break;
+                        // ONLY draw borders between actual countries (both have alpha > 0)
+                        // Skip borders between countries and water (na === 0)
+                        if (na > 0) {
+                            const neighborColor = `${nr},${ng},${nb}`;
+                            if (currentColor !== neighborColor) {
+                                isDifferentCountry = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -516,7 +520,7 @@ export class ProvinceMap {
         this.countryBordersReady = true;
 
         const elapsed = performance.now() - startTime;
-        console.log(`[ProvinceMap] ✓ Country borders generated: ${borderPixels} border pixels in ${elapsed.toFixed(0)}ms`);
+        console.log(`[ProvinceMap] ✓ Country borders generated: ${borderPixels} border pixels (land-only) in ${elapsed.toFixed(0)}ms`);
     }
 
     // Throttled render using requestAnimationFrame to prevent lag
