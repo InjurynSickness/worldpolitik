@@ -45,26 +45,17 @@ export class MapInteractionHandler {
         this.isPanning = false;
         this.isPainting = false;
 
+        // Left button - allow panning in all modes (including editor)
         if (event.button === 0) {
-            if (this.isEditorMode()) {
-                this.isPainting = true;
-                const canvasCoords = this.getCanvasCoordinates(event);
-                const { x, y } = this.cameraController.getMapCoordinates(canvasCoords.x, canvasCoords.y);
-                this.onPaint(x, y, false);
-            } else {
-                this.isPanning = true;
-            }
+            this.isPanning = true;
         } else if (event.button === 1) {
+            // Middle mouse button - always pan
             event.preventDefault();
             this.isPanning = true;
             this.canvas.style.cursor = 'grabbing';
         } else if (event.button === 2) {
+            // Right click - reserved for future use in editor
             event.preventDefault();
-            if (this.isEditorMode()) {
-                const canvasCoords = this.getCanvasCoordinates(event);
-                const { x, y } = this.cameraController.getMapCoordinates(canvasCoords.x, canvasCoords.y);
-                this.onPaint(x, y, true);
-            }
         }
     }
 
@@ -73,7 +64,8 @@ export class MapInteractionHandler {
         const dy = Math.abs(event.clientY - this.lastMousePos.y);
         const isClick = dx < this.dragThreshold && dy < this.dragThreshold;
 
-        if (event.button === 0 && isClick && !this.isEditorMode()) {
+        // If it was a click (not a drag), trigger onClick
+        if (event.button === 0 && isClick) {
             const canvasCoords = this.getCanvasCoordinates(event);
             const { x, y } = this.cameraController.getMapCoordinates(canvasCoords.x, canvasCoords.y);
             console.log('[MapInteractionHandler] Click at canvas coords:', canvasCoords, 'map coords:', {x, y});
@@ -82,17 +74,19 @@ export class MapInteractionHandler {
 
         this.isPanning = false;
         this.isPainting = false;
-        // Removed hover call - no hover visual feedback
+        this.canvas.style.cursor = this.isEditorMode() ? 'crosshair' : 'grab';
     }
 
     private handleMouseMove(event: MouseEvent): void {
         const isLeftButtonDown = event.buttons === 1;
         const isMiddleButtonDown = event.buttons === 4;
-        const isRightButtonDown = event.buttons === 2;
 
-        if ((isLeftButtonDown && !this.isEditorMode()) || isMiddleButtonDown) {
+        // Allow panning with left or middle mouse button (in all modes including editor)
+        if (isLeftButtonDown || isMiddleButtonDown) {
             const dx = Math.abs(event.clientX - this.lastMousePos.x);
             const dy = Math.abs(event.clientY - this.lastMousePos.y);
+
+            // Start panning if drag exceeds threshold
             if (!this.isPanning && (dx > this.dragThreshold || dy > this.dragThreshold)) {
                 this.isPanning = true;
             }
@@ -105,14 +99,6 @@ export class MapInteractionHandler {
                 this.lastMousePos = { x: event.clientX, y: event.clientY };
                 this.onPanOrZoom();
             }
-            return;
-        }
-
-        if ((isLeftButtonDown || isRightButtonDown) && this.isEditorMode()) {
-            this.isPainting = true;
-            const canvasCoords = this.getCanvasCoordinates(event);
-            const { x, y } = this.cameraController.getMapCoordinates(canvasCoords.x, canvasCoords.y);
-            this.onPaint(x, y, isRightButtonDown);
             return;
         }
 
