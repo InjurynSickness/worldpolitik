@@ -107,7 +107,8 @@ export class ProvinceMap {
             (x, y) => this.handleClick(x, y),
             (x, y, isRightClick) => this.handlePaint(x, y, isRightClick),
             () => this.requestRender(),
-            () => this.isEditorMode
+            () => this.isEditorMode,
+            () => this.handleDeselect()  // ESC key handler
         );
         
         this.loadAssets();
@@ -156,6 +157,11 @@ export class ProvinceMap {
                 logger.info('ProvinceMap', '🖼️ Rendering map for first time...');
                 this.render();
                 logger.info('ProvinceMap', '✅ Map rendered');
+
+                // Force another overlay redraw to ensure borders are visible
+                logger.debug('ProvinceMap', 'Forcing overlay redraw to ensure borders visible');
+                this.drawOverlays();
+                this.render();
 
                 // Wait for browser to paint the frame before notifying map is ready
                 // This ensures smooth loading screen transition and reduces perceived lag
@@ -259,6 +265,17 @@ export class ProvinceMap {
 
         ctx.putImageData(terrainImageData, 0, 0);
         logger.debug('ProvinceMap', 'Terrain.png processing complete. Ocean is now transparent.');
+    }
+
+    // ESC key handler - deselect province
+    private handleDeselect(): void {
+        if (this.selectedProvinceId) {
+            logger.info('ProvinceMap', 'Deselecting province');
+            this.selectedProvinceId = null;
+            this.stopPulseAnimation();
+            this.drawOverlays();
+            this.requestRender();
+        }
     }
 
     // Hover shows province borders without selecting

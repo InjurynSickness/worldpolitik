@@ -22,7 +22,8 @@ export class MapInteractionHandler {
         private onClick: (x: number, y: number) => void,
         private onPaint: (x: number, y: number, isRightClick: boolean) => void,
         private onPanOrZoom: () => void,
-        private isEditorMode: () => boolean
+        private isEditorMode: () => boolean,
+        private onDeselect?: () => void  // New callback for ESC key
     ) {
         this.setupEventListeners();
         this.startEdgeScrollLoop();
@@ -36,6 +37,15 @@ export class MapInteractionHandler {
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
         this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
         this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
+
+        // ESC key to deselect province
+        window.addEventListener('keydown', (e) => this.handleKeyDown(e));
+    }
+
+    private handleKeyDown(event: KeyboardEvent): void {
+        if (event.key === 'Escape' && this.onDeselect) {
+            this.onDeselect();
+        }
     }
 
     // Get accurate mouse coordinates using getBoundingClientRect

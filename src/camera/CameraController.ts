@@ -13,7 +13,7 @@ export class CameraController {
         x: 0,
         y: 0,
         zoom: 1,
-        minZoom: 0.1,
+        minZoom: 0.1,  // Will be recalculated based on viewport
         maxZoom: 15
     };
 
@@ -23,7 +23,27 @@ export class CameraController {
         private mapWidth: number,
         private mapHeight: number
     ) {
+        this.calculateMinZoom();
         this.resetCamera();
+    }
+
+    // Calculate minimum zoom to ensure map always fills at least 90% of viewport
+    private calculateMinZoom(): void {
+        const zoomToFitWidth = this.viewportWidth / this.mapWidth;
+        const zoomToFitHeight = this.viewportHeight / this.mapHeight;
+
+        // Use the larger of the two to ensure map fills screen
+        // Multiply by 0.9 to allow slight zoom out but not too much
+        this.camera.minZoom = Math.max(zoomToFitWidth, zoomToFitHeight) * 0.9;
+
+        console.log('[CameraController] Calculated minZoom:', this.camera.minZoom, {
+            viewportWidth: this.viewportWidth,
+            viewportHeight: this.viewportHeight,
+            mapWidth: this.mapWidth,
+            mapHeight: this.mapHeight,
+            zoomToFitWidth,
+            zoomToFitHeight
+        });
     }
 
     public resetCamera(): void {
@@ -98,6 +118,7 @@ export class CameraController {
     public updateViewportSize(width: number, height: number): void {
         this.viewportWidth = width;
         this.viewportHeight = height;
+        this.calculateMinZoom();  // Recalculate min zoom for new viewport size
         this.constrainCamera();
     }
 }
