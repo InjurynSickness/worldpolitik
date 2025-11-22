@@ -16,7 +16,8 @@ import { BorderMapBuilder } from './borders/BorderMapBuilder.js';
 import { CountryEditor } from './editor/CountryEditor.js';
 import { ProvinceSelector } from './editor/ProvinceSelector.js';
 import { BorderGenerator } from './rendering/BorderGenerator.js';
-import { EnhancedTerrainRenderer } from './rendering/EnhancedTerrainRenderer.js';
+import { TerrainAtlasRenderer } from './rendering/TerrainAtlasRenderer.js';
+import { BorderRenderer } from './rendering/BorderRenderer.js';
 import { logger } from './utils/Logger.js';
 
 const MAP_WIDTH = 5632;  // HOI4 map dimensions
@@ -47,8 +48,11 @@ export class ProvinceMap {
     private riversImage = new Image();
     private waterTextureImage = new Image();
 
-    // Enhanced terrain system with heightmaps, normal maps, and lighting
-    private enhancedTerrainRenderer: EnhancedTerrainRenderer | null = null;
+    // Terrain atlas renderer - uses actual HOI4 terrain textures
+    private terrainAtlasRenderer: TerrainAtlasRenderer | null = null;
+
+    // Border renderer - uses actual HOI4 border textures
+    private borderRenderer: BorderRenderer | null = null;
 
     private selectedProvinceId: string | null = null;
     private mapReady = false;
@@ -242,68 +246,52 @@ export class ProvinceMap {
         };
         this.waterTextureImage.src = './colormap_water_0.png';
 
-        // Initialize enhanced terrain system (heightmap, normal maps, lighting)
-        logger.info('ProvinceMap', '🗻 Initializing HOI4-style enhanced terrain rendering...');
-        this.enhancedTerrainRenderer = new EnhancedTerrainRenderer(
+        // Initialize terrain atlas renderer - uses actual HOI4 terrain textures
+        logger.info('ProvinceMap', '🗻 Initializing terrain atlas renderer with HOI4 textures...');
+        this.terrainAtlasRenderer = new TerrainAtlasRenderer(
             MAP_WIDTH,
             MAP_HEIGHT,
-            () => onAssetLoad('Enhanced Terrain System')
+            () => onAssetLoad('Terrain Atlas System'),
+            this.canvasManager.hiddenCtx  // Pass water mask context
         );
-        this.enhancedTerrainRenderer.load().catch((error) => {
-            logger.error('ProvinceMap', '❌ Enhanced terrain failed to load', error);
+        this.terrainAtlasRenderer.load().catch((error) => {
+            logger.error('ProvinceMap', '❌ Terrain atlas failed to load', error);
             logger.showDebugPanel();
             // Mark as loaded anyway so we don't block
-            onAssetLoad('Enhanced Terrain System');
+            onAssetLoad('Terrain Atlas System');
+        });
+
+        // Initialize border renderer - uses actual HOI4 border textures
+        logger.info('ProvinceMap', '🗺️ Initializing border renderer with HOI4 border textures...');
+        this.borderRenderer = new BorderRenderer(
+            MAP_WIDTH,
+            MAP_HEIGHT,
+            this.canvasManager.borderCtx,
+            () => onAssetLoad('Border System')
+        );
+        this.borderRenderer.load().catch((error) => {
+            logger.error('ProvinceMap', '❌ Border textures failed to load', error);
+            logger.showDebugPanel();
+            // Mark as loaded anyway so we don't block
+            onAssetLoad('Border System');
         });
     }
 
     private processTerrainImage(): void {
         const ctx = this.canvasManager.processedTerrainCtx;
 
-        // Use enhanced terrain if available (with heightmap-derived normal maps and lighting)
-        if (this.enhancedTerrainRenderer && this.enhancedTerrainRenderer.isReady()) {
-            logger.info('ProvinceMap', '🗻 Using HOI4-style enhanced terrain (normal-mapped + lit)...');
+        // Use terrain atlas renderer if available (with actual HOI4 terrain textures)
+        if (this.terrainAtlasRenderer && this.terrainAtlasRenderer.isReady()) {
+            logger.info('ProvinceMap', '🗻 Using HOI4 terrain atlas textures...');
 
-            // Draw the lit terrain
-            ctx.drawImage(this.enhancedTerrainRenderer.getTerrainCanvas(), 0, 0);
+            // Draw the terrain atlas (water is already masked as transparent)
+            ctx.drawImage(this.terrainAtlasRenderer.getTerrainCanvas(), 0, 0);
 
-            // Apply water mask
-            const terrainImageData = ctx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT);
-            const terrainData = terrainImageData.data;
-
-            const maskImageData = this.canvasManager.hiddenCtx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT);
-            const maskData = maskImageData.data;
-
-            let waterPixels = 0;
-            let landPixels = 0;
-
-            // Mask out water areas
-            for (let i = 0; i < terrainData.length; i += 4) {
-                const r = maskData[i];
-                const g = maskData[i + 1];
-                const b = maskData[i + 2];
-
-                // Ocean/water in provinces.png is black (0,0,0) or very dark
-                if (r < 10 && g < 10 && b < 10) {
-                    terrainData[i + 3] = 0;  // Make water transparent
-                    waterPixels++;
-                } else {
-                    // Keep terrain alpha from enhanced renderer
-                    landPixels++;
-                }
-            }
-
-            ctx.putImageData(terrainImageData, 0, 0);
-
-            logger.info('ProvinceMap', '✅ Enhanced terrain (HOI4-style with lighting) processing complete', {
-                waterPixels,
-                landPixels,
-                percentWater: ((waterPixels / (waterPixels + landPixels)) * 100).toFixed(1) + '%'
-            });
+            logger.info('ProvinceMap', '✅ Terrain atlas rendering complete (water already masked)');
 
         } else {
             // Fallback to old tiled pattern approach
-            logger.warn('ProvinceMap', '⚠️ Enhanced terrain not ready, using fallback tiled terrain');
+            logger.warn('ProvinceMap', '⚠️ Terrain atlas not ready, using fallback tiled terrain');
 
             const pattern = ctx.createPattern(this.terrainImage, 'repeat');
             if (!pattern) {

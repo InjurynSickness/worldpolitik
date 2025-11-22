@@ -30,19 +30,14 @@ export class MapRenderer {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
-        // Draw the raw provinces map
-        // This shows all 13,382 HOI4 provinces with their original colors
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(this.canvasManager.hiddenCanvas, 0, 0);
-
-        // Draw water texture (realistic ocean depth from HOI4 colormap_water)
-        // This layer provides realistic depth variation for oceans/seas
+        // LAYER 1: Draw water texture (realistic ocean depth from HOI4 colormap_water)
+        // This provides realistic depth variation for oceans/seas
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1.0;
         ctx.drawImage(this.canvasManager.waterTextureCanvas, 0, 0);
 
-        // Draw terrain texture FIRST - this is the primary visual element like in HOI4
+        // LAYER 2: Draw terrain texture (primary visual element like in HOI4)
+        // Water areas are transparent on this layer, so water texture shows through
         // Shows geographical features like mountains, forests, plains
         if (!this.terrainDebugLogged) {
             const terrainData = this.canvasManager.processedTerrainCtx.getImageData(0, 0, 100, 100);
@@ -61,19 +56,23 @@ export class MapRenderer {
         }
 
         ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1.0;  // Full terrain visibility - primary visual element
+        ctx.globalAlpha = 1.0;
         ctx.drawImage(this.canvasManager.processedTerrainCanvas, 0, 0);
 
-        // Draw political colors AFTER terrain as a subtle tint overlay (HOI4 style)
-        // Water is transparent on this layer, so ocean texture shows through
-        // Using overlay blend mode for smoother integration with terrain
-        ctx.globalCompositeOperation = 'overlay';  // Overlay preserves terrain detail while adding color
-        ctx.globalAlpha = 0.5;  // Balanced political color visibility
+        // LAYER 3: Draw political colors as overlay (HOI4 style)
+        // Using multiply blend for better color integration with terrain
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.globalAlpha = 0.7;  // Stronger political color visibility
         ctx.drawImage(this.canvasManager.politicalCanvas, 0, 0);
         ctx.globalAlpha = 1.0;
         ctx.globalCompositeOperation = 'source-over';  // Reset blend mode
 
-        // Draw rivers
+        // LAYER 4: Draw borders (country borders from border textures)
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(this.canvasManager.borderCanvas, 0, 0);
+
+        // LAYER 5: Draw rivers
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 0.6;
         ctx.drawImage(this.canvasManager.recoloredRiversCanvas, 0, 0);

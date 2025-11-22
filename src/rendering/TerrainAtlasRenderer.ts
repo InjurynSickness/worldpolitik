@@ -25,7 +25,8 @@ export class TerrainAtlasRenderer {
     constructor(
         private mapWidth: number,
         private mapHeight: number,
-        private onReady: () => void
+        private onReady: () => void,
+        private waterMaskCtx?: CanvasRenderingContext2D
     ) {
         this.terrainCanvas = document.createElement('canvas');
         this.terrainCanvas.width = mapWidth;
@@ -120,8 +121,50 @@ export class TerrainAtlasRenderer {
 
         this.terrainCtx.putImageData(terrainImageData, 0, 0);
 
+        // Apply water mask if provided
+        if (this.waterMaskCtx) {
+            this.applyWaterMask();
+        }
+
         const elapsed = performance.now() - startTime;
         logger.info('TerrainAtlasRenderer', `Terrain generated in ${elapsed.toFixed(0)}ms`);
+    }
+
+    /**
+     * Make water provinces transparent so water colormap shows through
+     */
+    private applyWaterMask(): void {
+        if (!this.waterMaskCtx) return;
+
+        logger.info('TerrainAtlasRenderer', 'Applying water mask to terrain...');
+
+        const terrainImageData = this.terrainCtx.getImageData(0, 0, this.mapWidth, this.mapHeight);
+        const terrainData = terrainImageData.data;
+
+        const maskImageData = this.waterMaskCtx.getImageData(0, 0, this.mapWidth, this.mapHeight);
+        const maskData = maskImageData.data;
+
+        let waterPixels = 0;
+        let landPixels = 0;
+
+        // Make water areas transparent
+        for (let i = 0; i < terrainData.length; i += 4) {
+            const r = maskData[i];
+            const g = maskData[i + 1];
+            const b = maskData[i + 2];
+
+            // Ocean/water in provinces.png is black (0,0,0) or very dark
+            if (r < 10 && g < 10 && b < 10) {
+                terrainData[i + 3] = 0;  // Make water transparent
+                waterPixels++;
+            } else {
+                landPixels++;
+            }
+        }
+
+        this.terrainCtx.putImageData(terrainImageData, 0, 0);
+
+        logger.info('TerrainAtlasRenderer', `Water mask applied - ${waterPixels} water pixels, ${landPixels} land pixels`);
     }
 
     /**
