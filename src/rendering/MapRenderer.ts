@@ -34,7 +34,20 @@ export class MapRenderer {
         ctx.globalAlpha = 1.0;
         ctx.drawImage(this.canvasManager.hiddenCanvas, 0, 0);
 
-        // Draw terrain texture (processed to be transparent over water)
+        // Draw water texture (realistic ocean depth from HOI4 colormap_water)
+        // This layer provides realistic depth variation for oceans/seas
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(this.canvasManager.waterTextureCanvas, 0, 0);
+
+        // Draw political colors on top (ONLY where we have ownership data)
+        // Water is transparent on this layer, so ocean texture shows through
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 0.95;  // Strong political colors
+        ctx.drawImage(this.canvasManager.politicalCanvas, 0, 0);
+        ctx.globalAlpha = 1.0;
+
+        // Draw terrain texture AFTER political colors (processed to be transparent over water)
         // Shows geographical features like mountains, forests, plains
         if (!this.terrainDebugLogged) {
             const terrainData = this.canvasManager.processedTerrainCtx.getImageData(0, 0, 100, 100);
@@ -52,23 +65,9 @@ export class MapRenderer {
             this.terrainDebugLogged = true;
         }
 
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 0.4;  // Subtle terrain overlay
+        ctx.globalCompositeOperation = 'multiply';  // Blend terrain with political colors
+        ctx.globalAlpha = 0.7;  // Visible terrain overlay
         ctx.drawImage(this.canvasManager.processedTerrainCanvas, 0, 0);
-        ctx.globalAlpha = 1.0;
-
-        // Draw water texture (realistic ocean depth from HOI4 colormap_water)
-        // This layer provides realistic depth variation for oceans/seas
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(this.canvasManager.waterTextureCanvas, 0, 0);
-
-        // Draw political colors on top (ONLY where we have ownership data)
-        // Strong opacity for clear country colors
-        // Water is transparent on this layer, so ocean texture shows through
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 0.95;  // Strong political colors
-        ctx.drawImage(this.canvasManager.politicalCanvas, 0, 0);
         ctx.globalAlpha = 1.0;
 
         // Draw rivers
