@@ -18,7 +18,7 @@ interface EditorPanelProps {
     onMapUpdate: () => void; // Called when map needs to redraw
 }
 
-export const EditorPanel: React.FC<EditorPanelProps> = ({
+const EditorPanelComponent: React.FC<EditorPanelProps> = ({
     editor,
     isOpen,
     onClose,
@@ -201,7 +201,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
             <ScrollArea className="flex-1" style={{ pointerEvents: 'auto' }}>
                 <div className="p-4 space-y-4" style={{ pointerEvents: 'auto' }}>
                     {/* Mode Selection */}
-                    <Card className="bg-slate-800 border-slate-700" style={{ pointerEvents: 'auto' }}>
+                    <Card className="bg-slate-800 border-2 border-slate-600" style={{ pointerEvents: 'auto' }}>
                         <CardHeader>
                             <CardTitle className="text-sm">Edit Mode</CardTitle>
                         </CardHeader>
@@ -211,7 +211,11 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                     size="sm"
                                     variant={state.editMode === 'province' ? 'default' : 'outline'}
                                     onClick={() => editor.setEditMode('province')}
-                                    className="flex-1"
+                                    className={`flex-1 border-2 transition-all ${
+                                        state.editMode === 'province'
+                                            ? 'border-blue-500 bg-blue-600 hover:bg-blue-700'
+                                            : 'border-slate-600 hover:border-blue-400 hover:bg-slate-700'
+                                    }`}
                                     style={{ pointerEvents: 'auto' }}
                                 >
                                     Province
@@ -220,7 +224,11 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                     size="sm"
                                     variant={state.editMode === 'country' ? 'default' : 'outline'}
                                     onClick={() => editor.setEditMode('country')}
-                                    className="flex-1"
+                                    className={`flex-1 border-2 transition-all ${
+                                        state.editMode === 'country'
+                                            ? 'border-green-500 bg-green-600 hover:bg-green-700'
+                                            : 'border-slate-600 hover:border-green-400 hover:bg-slate-700'
+                                    }`}
                                     style={{ pointerEvents: 'auto' }}
                                 >
                                     Country
@@ -229,7 +237,11 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                     size="sm"
                                     variant={state.editMode === 'paint' ? 'default' : 'outline'}
                                     onClick={() => editor.setEditMode('paint')}
-                                    className="flex-1"
+                                    className={`flex-1 border-2 transition-all ${
+                                        state.editMode === 'paint'
+                                            ? 'border-orange-500 bg-orange-600 hover:bg-orange-700'
+                                            : 'border-slate-600 hover:border-orange-400 hover:bg-slate-700'
+                                    }`}
                                     style={{ pointerEvents: 'auto' }}
                                 >
                                     Paint
@@ -240,7 +252,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                     {/* Selected Province */}
                     {selectedProvince && (
-                        <Card className="bg-slate-800 border-slate-700">
+                        <Card className="bg-slate-800 border-2 border-slate-700">
                             <CardHeader>
                                 <CardTitle className="text-sm">Selected Province</CardTitle>
                             </CardHeader>
@@ -278,18 +290,18 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                         className="mb-2 bg-slate-700 border-slate-600"
                                     />
                                     <Select value={selectedOwnerChange} onValueChange={handleChangeProvinceOwner}>
-                                        <SelectTrigger>
+                                        <SelectTrigger className="bg-slate-700 border-slate-600">
                                             <SelectValue placeholder="Select country..." />
                                         </SelectTrigger>
-                                        <SelectContent className="max-h-[300px]">
+                                        <SelectContent className="max-h-[300px] z-[9999] bg-slate-800 border-slate-600" position="popper" sideOffset={5}>
                                             {filteredCountries.slice(0, 50).map(country => (
-                                                <SelectItem key={country.tag} value={country.tag}>
+                                                <SelectItem key={country.tag} value={country.tag} className="focus:bg-slate-700">
                                                     <div className="flex items-center gap-2">
                                                         <div
-                                                            className="w-3 h-3 rounded"
+                                                            className="w-3 h-3 rounded border border-slate-600"
                                                             style={{ backgroundColor: country.color }}
                                                         />
-                                                        {country.tag} - {country.name}
+                                                        <span className="text-white">{country.tag} - {country.name}</span>
                                                     </div>
                                                 </SelectItem>
                                             ))}
@@ -316,7 +328,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                     {/* Multiple Provinces Selected */}
                     {state.selectedProvinces.size > 1 && (
-                        <Card className="bg-slate-800 border-slate-700">
+                        <Card className="bg-slate-800 border-2 border-slate-700">
                             <CardHeader>
                                 <CardTitle className="text-sm">
                                     Multiple Provinces Selected
@@ -333,18 +345,18 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                         className="mb-2 bg-slate-700 border-slate-600"
                                     />
                                     <Select value={selectedOwnerChange} onValueChange={handleBulkChangeOwner}>
-                                        <SelectTrigger>
+                                        <SelectTrigger className="bg-slate-700 border-slate-600">
                                             <SelectValue placeholder="Select country..." />
                                         </SelectTrigger>
-                                        <SelectContent className="max-h-[300px]">
+                                        <SelectContent className="max-h-[300px] z-[9999] bg-slate-800 border-slate-600" position="popper" sideOffset={5}>
                                             {filteredCountries.slice(0, 50).map(country => (
-                                                <SelectItem key={country.tag} value={country.tag}>
+                                                <SelectItem key={country.tag} value={country.tag} className="focus:bg-slate-700">
                                                     <div className="flex items-center gap-2">
                                                         <div
-                                                            className="w-3 h-3 rounded"
+                                                            className="w-3 h-3 rounded border border-slate-600"
                                                             style={{ backgroundColor: country.color }}
                                                         />
-                                                        {country.tag} - {country.name}
+                                                        <span className="text-white">{country.tag} - {country.name}</span>
                                                     </div>
                                                 </SelectItem>
                                             ))}
@@ -362,7 +374,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
 
                     {/* Selected Country */}
                     {selectedCountryData && (
-                        <Card className="bg-slate-800 border-slate-700">
+                        <Card className="bg-slate-800 border-2 border-slate-700">
                             <CardHeader>
                                 <CardTitle className="text-sm">Selected Country</CardTitle>
                             </CardHeader>
@@ -422,7 +434,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     )}
 
                     {/* Create New Country */}
-                    <Card className="bg-slate-800 border-slate-700">
+                    <Card className="bg-slate-800 border-2 border-slate-700">
                         <CardHeader>
                             <CardTitle className="text-sm">Create New Country</CardTitle>
                         </CardHeader>
@@ -477,7 +489,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     </Card>
 
                     {/* Actions */}
-                    <Card className="bg-slate-800 border-slate-700">
+                    <Card className="bg-slate-800 border-2 border-slate-700">
                         <CardHeader>
                             <CardTitle className="text-sm">Actions</CardTitle>
                         </CardHeader>
@@ -514,7 +526,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                     </Card>
 
                     {/* Statistics */}
-                    <Card className="bg-slate-800 border-slate-700">
+                    <Card className="bg-slate-800 border-2 border-slate-700">
                         <CardHeader>
                             <CardTitle className="text-sm">Statistics</CardTitle>
                         </CardHeader>
@@ -538,3 +550,6 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
         </div>
     );
 };
+
+// Memoize to prevent unnecessary re-renders that cause stuttering
+export const EditorPanel = React.memo(EditorPanelComponent);
