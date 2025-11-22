@@ -104,7 +104,13 @@ export class MapInteractionHandler {
 
         this.isPanning = false;
         this.isPainting = false;
-        // Removed hover call - no hover visual feedback
+
+        // Enable hover visual feedback (show province borders on hover)
+        if (this.onHover) {
+            const canvasCoords = this.getCanvasCoordinates(event);
+            const { x, y } = this.cameraController.getMapCoordinates(canvasCoords.x, canvasCoords.y);
+            this.onHover(x, y);
+        }
     }
 
     private handleMouseLeave(): void {

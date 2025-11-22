@@ -38,6 +38,9 @@ const EditorPanelComponent: React.FC<EditorPanelProps> = ({
     // Country search filter for performance
     const [countrySearchFilter, setCountrySearchFilter] = useState('');
 
+    // Map update pending indicator
+    const [isMapUpdating, setIsMapUpdating] = useState(false);
+
     // Filtered countries list (memoized for performance)
     const filteredCountries = React.useMemo(() => {
         if (!countrySearchFilter) return countries;
@@ -221,10 +224,16 @@ const EditorPanelComponent: React.FC<EditorPanelProps> = ({
             clearTimeout(mapUpdateTimeoutRef.current);
         }
 
-        // Debounce the map rebuild (wait 500ms after last change - longer to prevent stuttering)
+        // Show updating indicator immediately
+        setIsMapUpdating(true);
+
+        // Debounce the map rebuild (wait 2000ms = 2 seconds after last change to prevent stuttering)
         mapUpdateTimeoutRef.current = window.setTimeout(() => {
+            console.log('[EditorPanel] Rebuilding map...');
             onMapUpdate();
-        }, 500);
+            setIsMapUpdating(false);
+            console.log('[EditorPanel] Map rebuild complete');
+        }, 2000);
     }, [onMapUpdate]);
 
     // Debounced color change to prevent lag when dragging color picker
@@ -233,15 +242,21 @@ const EditorPanelComponent: React.FC<EditorPanelProps> = ({
         // Immediately update editor state (instant visual feedback in UI)
         editor.changeCountryColor(tag, color);
 
+        // Show updating indicator immediately
+        setIsMapUpdating(true);
+
         // Clear previous timeout
         if (colorChangeTimeoutRef.current) {
             clearTimeout(colorChangeTimeoutRef.current);
         }
 
-        // Debounce the map rebuild (wait 500ms after user stops dragging)
+        // Debounce the map rebuild (wait 2000ms after user stops dragging)
         colorChangeTimeoutRef.current = window.setTimeout(() => {
+            console.log('[EditorPanel] Rebuilding map (color change)...');
             onMapUpdate();
-        }, 500);
+            setIsMapUpdating(false);
+            console.log('[EditorPanel] Map rebuild complete');
+        }, 2000);
     }, [editor, onMapUpdate]);
 
     return (
@@ -251,14 +266,22 @@ const EditorPanelComponent: React.FC<EditorPanelProps> = ({
         >
             {/* Header */}
             <div className="p-4 bg-slate-800 border-b border-slate-700 flex justify-between items-center">
-                <h2 className="text-xl font-bold">MAP EDITOR</h2>
+                <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold">MAP EDITOR</h2>
+                    {isMapUpdating && (
+                        <div className="flex items-center gap-2 text-sm text-yellow-400">
+                            <div className="animate-spin h-4 w-4 border-2 border-yellow-400 border-t-transparent rounded-full"></div>
+                            <span>Updating map...</span>
+                        </div>
+                    )}
+                </div>
                 <Button variant="ghost" size="sm" onClick={onClose}>
                     ✕
                 </Button>
             </div>
 
-            <ScrollArea className="flex-1" style={{ pointerEvents: 'auto' }}>
-                <div className="p-4 space-y-4" style={{ pointerEvents: 'auto' }}>
+            <ScrollArea className="flex-1 overflow-y-auto" style={{ pointerEvents: 'auto' }}>
+                <div className="p-4 space-y-4" style={{ pointerEvents: 'auto', touchAction: 'auto' }}>
                     {/* Mode Selection */}
                     <Card className="bg-slate-800 border-2 border-slate-600" style={{ pointerEvents: 'auto' }}>
                         <CardHeader>

@@ -102,7 +102,7 @@ export class ProvinceMap {
         this.interactionHandler = new MapInteractionHandler(
             this.canvasManager.visibleCanvas,
             this.cameraController,
-            null,  // No hover callback - removed hover visual feedback
+            (x, y) => this.handleHover(x, y),  // Enable hover to show province borders
             (x, y) => this.handleClick(x, y),
             (x, y, isRightClick) => this.handlePaint(x, y, isRightClick),
             () => this.requestRender(),
@@ -254,6 +254,32 @@ export class ProvinceMap {
 
         ctx.putImageData(terrainImageData, 0, 0);
         console.log("DEBUG: terrain.png processing complete. Ocean is now transparent.");
+    }
+
+    // Hover shows province borders without selecting
+    private handleHover(x: number, y: number): void {
+        if (!this.mapReady) return;
+
+        const province = this.getProvinceAt(x, y);
+
+        // Skip if no province or water
+        if (!province || province.id === 'OCEAN' || province.id === '0' ||
+            province.name === 'sea' || province.name === 'lake') {
+            // Clear hover if hovering over water
+            if (this.selectedProvinceId && !this.isEditorMode) {
+                // Only clear in normal mode, not editor mode
+                return;
+            }
+            return;
+        }
+
+        // In editor mode, show borders for hovered province
+        if (this.isEditorMode) {
+            // Temporarily show border for hovered province (lightweight, no selection)
+            this.selectedProvinceId = province.id;
+            this.drawOverlays();
+            this.requestRender();
+        }
     }
 
     private handleClick(x: number, y: number): void {
