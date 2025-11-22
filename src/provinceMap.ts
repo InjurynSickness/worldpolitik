@@ -15,6 +15,7 @@ import { PoliticalMapBuilder } from './political/PoliticalMapBuilder.js';
 import { BorderMapBuilder } from './borders/BorderMapBuilder.js';
 import { CountryEditor } from './editor/CountryEditor.js';
 import { ProvinceSelector } from './editor/ProvinceSelector.js';
+import { logger } from './utils/Logger.js';
 
 const MAP_WIDTH = 5632;  // HOI4 map dimensions
 const MAP_HEIGHT = 2048;
@@ -114,7 +115,8 @@ export class ProvinceMap {
     }
 
     private loadAssets(): void {
-        console.log('[ProvinceMap] Starting asset loading...');
+        logger.time('ProvinceMap', 'Total asset loading');
+        logger.info('ProvinceMap', '🚀 Starting asset loading...');
         let assetsLoaded = 0;
         const totalAssets = 4; // terrain, provinces, rivers, water texture
         const loadedAssets: string[] = [];
@@ -122,112 +124,115 @@ export class ProvinceMap {
         const onAssetLoad = (assetName: string) => {
             assetsLoaded++;
             loadedAssets.push(assetName);
-            console.log(`[ProvinceMap] ✓ Asset loaded: ${assetName} (${assetsLoaded}/${totalAssets})`);
+            logger.info('ProvinceMap', `✓ Asset loaded: ${assetName} (${assetsLoaded}/${totalAssets})`);
 
             if (assetsLoaded === totalAssets) {
-                console.log('[ProvinceMap] ✓ All assets loaded:', loadedAssets);
-                console.log('[ProvinceMap] Drawing province image to hidden canvas...');
+                logger.info('ProvinceMap', '✅ All assets loaded', { loadedAssets });
+                logger.info('ProvinceMap', 'Drawing province image to hidden canvas...');
 
                 try {
                     this.canvasManager.hiddenCtx.drawImage(this.provinceImage, 0, 0);
-                    console.log('[ProvinceMap] ✓ Province image drawn');
+                    logger.info('ProvinceMap', '✓ Province image drawn');
                 } catch (error) {
-                    console.error('[ProvinceMap] ERROR drawing province image:', error);
+                    logger.error('ProvinceMap', 'ERROR drawing province image', error);
                 }
 
                 this.mapReady = true;
 
-                console.log('[ProvinceMap] Processing terrain image...');
+                logger.info('ProvinceMap', '⚙️ Processing terrain image...');
                 this.processTerrainImage();
 
-                console.log('[ProvinceMap] Building political map...');
+                logger.info('ProvinceMap', '🗺️ Building political map...');
                 this.buildPoliticalMap();
 
-                console.log('[ProvinceMap] Generating country borders...');
+                logger.info('ProvinceMap', '🔲 Generating country borders...');
+                logger.time('ProvinceMap', 'Border generation');
                 this.generateCountryBorders();
+                logger.timeEnd('ProvinceMap', 'Border generation');
 
-                console.log('[ProvinceMap] Drawing borders and overlays...');
+                logger.info('ProvinceMap', '🎨 Drawing borders and overlays...');
                 this.drawOverlays();
 
-                console.log('[ProvinceMap] Rendering map for first time...');
+                logger.info('ProvinceMap', '🖼️ Rendering map for first time...');
                 this.render();
-                console.log('[ProvinceMap] ✓ Map rendered');
+                logger.info('ProvinceMap', '✅ Map rendered');
 
                 // Wait for browser to paint the frame before notifying map is ready
                 // This ensures smooth loading screen transition and reduces perceived lag
-                console.log('[ProvinceMap] Waiting for browser repaint...');
+                logger.info('ProvinceMap', '⏳ Waiting for browser repaint...');
                 requestAnimationFrame(() => {
                     // Wait one more frame to ensure everything is painted and interactive
                     requestAnimationFrame(() => {
-                        console.log('[ProvinceMap] ✓✓✓ Browser repainted, map fully ready');
-                        console.log('[ProvinceMap] Calling onMapReady callback...');
+                        logger.timeEnd('ProvinceMap', 'Total asset loading');
+                        logger.info('ProvinceMap', '✅✅✅ Browser repainted, map fully ready');
+                        logger.info('ProvinceMap', 'Calling onMapReady callback...');
                         if (this.onMapReady) {
                             this.onMapReady();
                         } else {
-                            console.warn('[ProvinceMap] WARNING: No onMapReady callback provided');
+                            logger.error('ProvinceMap', '⚠️ WARNING: No onMapReady callback provided');
                         }
                     });
                 });
             }
         };
 
-        console.log('[ProvinceMap] Loading terrain.png...');
+        logger.info('ProvinceMap', '📥 Loading terrain.png...');
         this.terrainImage.onload = () => onAssetLoad('terrain.png');
         this.terrainImage.onerror = (e) => {
-            console.error('[ProvinceMap] ✗ FAILED to load terrain.png:', e);
-            console.error('[ProvinceMap] Attempted path: ./terrain.png');
+            logger.error('ProvinceMap', '❌ FAILED to load terrain.png', { path: './terrain.png', error: e });
+            logger.showDebugPanel(); // Auto-show debug panel on error
         };
         this.terrainImage.src = './terrain.png';
 
-        console.log('[ProvinceMap] Loading provinces.png...');
+        logger.info('ProvinceMap', '📥 Loading provinces.png...');
         this.provinceImage.onload = () => onAssetLoad('provinces.png');
         this.provinceImage.onerror = (e) => {
-            console.error('[ProvinceMap] ✗ FAILED to load provinces.png:', e);
-            console.error('[ProvinceMap] Attempted path: ./provinces.png');
+            logger.error('ProvinceMap', '❌ FAILED to load provinces.png', { path: './provinces.png', error: e });
+            logger.showDebugPanel();
         };
         this.provinceImage.src = './provinces.png';
 
-        console.log('[ProvinceMap] Loading rivers.png...');
+        logger.info('ProvinceMap', '📥 Loading rivers.png...');
         this.riversImage.onload = () => {
-            console.log('[ProvinceMap] Recoloring rivers...');
+            logger.info('ProvinceMap', '🎨 Recoloring rivers...');
             try {
                 this.canvasManager.recoloredRiversCtx.drawImage(this.riversImage, 0, 0);
                 this.canvasManager.recoloredRiversCtx.globalCompositeOperation = 'source-in';
                 this.canvasManager.recoloredRiversCtx.fillStyle = '#283a4a';
                 this.canvasManager.recoloredRiversCtx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
                 this.canvasManager.recoloredRiversCtx.globalCompositeOperation = 'source-over';
-                console.log('[ProvinceMap] ✓ Rivers recolored');
+                logger.info('ProvinceMap', '✅ Rivers recolored');
             } catch (error) {
-                console.error('[ProvinceMap] ERROR recoloring rivers:', error);
+                logger.error('ProvinceMap', 'ERROR recoloring rivers', error);
             }
             onAssetLoad('rivers.png');
         };
         this.riversImage.onerror = (e) => {
-            console.error('[ProvinceMap] ✗ FAILED to load rivers.png:', e);
-            console.error('[ProvinceMap] Attempted path: ./rivers.png');
+            logger.error('ProvinceMap', '❌ FAILED to load rivers.png', { path: './rivers.png', error: e });
+            logger.showDebugPanel();
         };
         this.riversImage.src = './rivers.png';
 
-        console.log('[ProvinceMap] Loading water texture...');
+        logger.info('ProvinceMap', '📥 Loading water texture...');
         this.waterTextureImage.onload = () => {
-            console.log('[ProvinceMap] Drawing water texture to canvas...');
+            logger.info('ProvinceMap', '🎨 Drawing water texture to canvas...');
             try {
                 this.canvasManager.waterTextureCtx.drawImage(this.waterTextureImage, 0, 0, MAP_WIDTH, MAP_HEIGHT);
-                console.log('[ProvinceMap] ✓ Water texture drawn');
+                logger.info('ProvinceMap', '✅ Water texture drawn');
             } catch (error) {
-                console.error('[ProvinceMap] ERROR drawing water texture:', error);
+                logger.error('ProvinceMap', 'ERROR drawing water texture', error);
             }
             onAssetLoad('colormap_water_0.png');
         };
         this.waterTextureImage.onerror = (e) => {
-            console.error('[ProvinceMap] ✗ FAILED to load colormap_water_0.png:', e);
-            console.error('[ProvinceMap] Attempted path: ./colormap_water_0.png');
+            logger.error('ProvinceMap', '❌ FAILED to load colormap_water_0.png', { path: './colormap_water_0.png', error: e });
+            logger.showDebugPanel();
         };
         this.waterTextureImage.src = './colormap_water_0.png';
     }
 
     private processTerrainImage(): void {
-        console.log("DEBUG: Processing terrain.png using provinces.png as a mask...");
+        logger.debug('ProvinceMap', 'Processing terrain.png using provinces.png as a mask...');
         const ctx = this.canvasManager.processedTerrainCtx;
 
         ctx.drawImage(this.terrainImage, 0, 0);
@@ -253,7 +258,7 @@ export class ProvinceMap {
         }
 
         ctx.putImageData(terrainImageData, 0, 0);
-        console.log("DEBUG: terrain.png processing complete. Ocean is now transparent.");
+        logger.debug('ProvinceMap', 'Terrain.png processing complete. Ocean is now transparent.');
     }
 
     // Hover shows province borders without selecting
@@ -286,18 +291,18 @@ export class ProvinceMap {
         if (!this.mapReady) return;
         const province = this.getProvinceAt(x, y);
 
-        console.log('[ProvinceMap] Clicked province:', province);
+        logger.debug('ProvinceMap', 'Clicked province', province);
 
         // Filter out invalid provinces
         if (!province) {
-            console.log('[ProvinceMap] No province found at click location');
+            logger.debug('ProvinceMap', 'No province found at click location');
             return;
         }
 
         // Filter out ocean, sea, lakes - only land provinces are clickable
         if (province.id === 'OCEAN' || province.id === '0' ||
             province.name === 'sea' || province.name === 'lake') {
-            console.log('[ProvinceMap] Clicked on water province, ignoring');
+            logger.debug('ProvinceMap', 'Clicked on water province, ignoring');
             return;
         }
 
@@ -310,10 +315,10 @@ export class ProvinceMap {
             const ownerCountryTag = this.provinceOwnerMap.get(province.id);
             if (ownerCountryTag) {
                 this.countryEditor.selectCountry(ownerCountryTag);
-                console.log('[ProvinceMap] Editor mode: selected province', province.id, 'and country', ownerCountryTag);
+                logger.debug('ProvinceMap', `Editor mode: selected province ${province.id} and country ${ownerCountryTag}`);
             } else {
                 this.countryEditor.selectCountry(null);
-                console.log('[ProvinceMap] Editor mode: selected province', province.id, '(no owner)');
+                logger.debug('ProvinceMap', `Editor mode: selected province ${province.id} (no owner)`);
             }
             return;
         }
@@ -321,10 +326,10 @@ export class ProvinceMap {
         // Normal game mode: select country
         // Look up which country owns this province
         const countryId = this.provinceOwnerMap.get(province.id);
-        console.log('[ProvinceMap] Province owner:', countryId);
+        logger.debug('ProvinceMap', 'Province owner', { provinceId: province.id, countryId });
 
         if (countryId && this.selectedProvinceId !== province.id) {
-            console.log('[ProvinceMap] Selecting country:', countryId);
+            logger.info('ProvinceMap', `Selecting country: ${countryId}`);
             // Pass the country ID (not province ID) to the callback
             this.onCountrySelect(countryId);
             this.selectedProvinceId = province.id;
@@ -332,7 +337,7 @@ export class ProvinceMap {
             this.drawOverlays();
             this.requestRender();
         } else if (!countryId) {
-            console.log('[ProvinceMap] Province has no owner assigned');
+            logger.debug('ProvinceMap', 'Province has no owner assigned');
         }
     }
 
@@ -427,6 +432,7 @@ export class ProvinceMap {
 
     // Generate border pixels for a specific province (on-demand, cached)
     private generateProvinceBorders(provinceId: string): [number, number][] {
+        logger.debug('ProvinceMap', `Generating borders for province: ${provinceId}`);
         const borders: [number, number][] = [];
         const imageData = this.canvasManager.hiddenCtx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT);
         const data = imageData.data;
@@ -483,6 +489,7 @@ export class ProvinceMap {
             }
         }
 
+        logger.debug('ProvinceMap', `Generated ${borders.length} border pixels for province ${provinceId}`);
         return borders;
     }
 
@@ -491,7 +498,7 @@ export class ProvinceMap {
     // NOTE: Does NOT draw borders between countries and water/ocean
     private generateCountryBorders(): void {
         const startTime = performance.now();
-        console.log('[ProvinceMap] Generating country borders...');
+        logger.debug('ProvinceMap', 'Generating country borders...');
 
         this.countryBorders = [];
         this.countryBordersReady = false;
@@ -554,7 +561,7 @@ export class ProvinceMap {
         this.countryBordersReady = true;
 
         const elapsed = performance.now() - startTime;
-        console.log(`[ProvinceMap] ✓ Country borders generated: ${borderPixels} border pixels (land-only) in ${elapsed.toFixed(0)}ms`);
+        logger.info('ProvinceMap', `✓ Country borders generated: ${borderPixels} border pixels (land-only) in ${elapsed.toFixed(0)}ms`);
     }
 
     // Throttled render using requestAnimationFrame to prevent lag
@@ -612,7 +619,7 @@ export class ProvinceMap {
             this.buildBorderMap();
             this.showNotification(`Auto-assigned ${result.assigned} provinces, ${result.unassigned} need manual assignment`, 'success');
         } catch (error) {
-            console.error('CSV Import failed:', error);
+            logger.error('ProvinceMap', 'CSV Import failed', error);
             this.showNotification('Failed to import CSV', 'error');
         }
     }
@@ -645,14 +652,14 @@ export class ProvinceMap {
     }
     
     public setProvinceOwnerMap(ownerMap: Map<string, string>): void {
-        console.log("Loading province owner map...");
+        logger.info('ProvinceMap', 'Loading province owner map...');
 
         // Try to load saved editor state from localStorage
         let loadedFromStorage = false;
         try {
             const saved = localStorage.getItem('worldpolitik_editor_state');
             if (saved) {
-                console.log('[ProvinceMap] Found saved editor state in localStorage, loading...');
+                logger.info('ProvinceMap', 'Found saved editor state in localStorage, loading...');
                 const { EditorDataExporter } = require('./editor/EditorDataExporter');
                 const imported = EditorDataExporter.importEditorStateJSON(saved);
                 if (imported) {
@@ -660,11 +667,11 @@ export class ProvinceMap {
                     this.allCountryData = imported.countries;
                     this.provinceOwnerMap = imported.provinceOwners;
                     loadedFromStorage = true;
-                    console.log('[ProvinceMap] Loaded saved state:', imported.countries.size, 'countries,', imported.provinceOwners.size, 'provinces');
+                    logger.info('ProvinceMap', `Loaded saved state: ${imported.countries.size} countries, ${imported.provinceOwners.size} provinces`);
                 }
             }
         } catch (error) {
-            console.error('[ProvinceMap] Failed to load saved state:', error);
+            logger.error('ProvinceMap', 'Failed to load saved state', error);
         }
 
         // If no saved state, use default
@@ -674,10 +681,10 @@ export class ProvinceMap {
 
         // Initialize CountryEditor with current map data
         if (this.allCountryData.size > 0) {
-            console.log('[ProvinceMap] Initializing CountryEditor...');
+            logger.info('ProvinceMap', 'Initializing CountryEditor...');
             this.countryEditor = new CountryEditor(this.allCountryData, this.provinceOwnerMap);
             this.provinceSelector = new ProvinceSelector(MAP_WIDTH, MAP_HEIGHT);
-            console.log('[ProvinceMap] CountryEditor initialized');
+            logger.info('ProvinceMap', 'CountryEditor initialized');
         }
 
         if (this.mapReady) {
@@ -746,7 +753,7 @@ export class ProvinceMap {
      */
     public rebuildFromEditor(): void {
         if (!this.countryEditor) {
-            console.error('[ProvinceMap] No CountryEditor initialized');
+            logger.error('ProvinceMap', 'No CountryEditor initialized');
             return;
         }
 
@@ -766,12 +773,12 @@ export class ProvinceMap {
         this.allCountryData = updatedCountryData;
 
         // Rebuild the map
-        console.log('[ProvinceMap] Rebuilding political map from editor changes...');
+        logger.info('ProvinceMap', 'Rebuilding political map from editor changes...');
         this.buildPoliticalMap();
         this.generateCountryBorders();
         this.buildBorderMap();
         this.drawOverlays();
         this.requestRender();
-        console.log('[ProvinceMap] Map rebuilt successfully');
+        logger.info('ProvinceMap', 'Map rebuilt successfully');
     }
 }
