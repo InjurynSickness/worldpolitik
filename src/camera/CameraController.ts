@@ -52,15 +52,15 @@ export class CameraController {
         const zoomToFitHeight = this.viewportHeight / this.mapHeight;
 
         // User-tested perfect fit zoom (shows entire map with no black borders)
-        // This is slightly smaller than Math.max to ensure full map is visible
+        // Multiply by 1.04 to slightly zoom in and eliminate black borders
         const baseFitZoom = Math.max(zoomToFitWidth, zoomToFitHeight);
-        this.camera.zoom = baseFitZoom * 0.9; // Multiply by 0.9 to show full map
+        this.camera.zoom = baseFitZoom * 1.04; // User confirmed 0.4329 is perfect fit
 
         console.log('📐 INITIAL ZOOM SET TO:', this.camera.zoom.toFixed(4), {
             zoomToFitWidth: zoomToFitWidth.toFixed(4),
             zoomToFitHeight: zoomToFitHeight.toFixed(4),
             baseFitZoom: baseFitZoom.toFixed(4),
-            multiplier: 0.9,
+            multiplier: 1.04,
             viewportWidth: this.viewportWidth,
             viewportHeight: this.viewportHeight,
             mapWidth: this.mapWidth,
