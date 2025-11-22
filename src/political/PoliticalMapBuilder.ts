@@ -110,23 +110,10 @@ export class PoliticalMapBuilder {
      * This reduces the jagged appearance while maintaining border visibility
      */
     private smoothPoliticalEdges(ctx: CanvasRenderingContext2D): void {
-        // Create a temporary canvas for the smoothing operation
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = this.mapWidth;
-        tempCanvas.height = this.mapHeight;
-        const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
-        if (!tempCtx) return;
-
-        // Copy current political map to temp canvas
-        tempCtx.drawImage(ctx.canvas, 0, 0);
-
-        // Apply a very subtle blur using canvas filter (GPU-accelerated)
-        // 1px blur is enough to smooth jagged edges without losing definition
-        ctx.filter = 'blur(1px)';
-        ctx.drawImage(tempCanvas, 0, 0);
-        ctx.filter = 'none';
-
-        console.log("Applied edge smoothing to political boundaries");
+        // DISABLED: Blur causes color bleeding across borders
+        // HOI4 uses sharp, clean borders without blur
+        // The border textures provide the visual separation
+        console.log("Edge smoothing disabled for HOI4-style sharp borders");
     }
 
     private hexToRgb(hex: string): Color {
@@ -137,8 +124,8 @@ export class PoliticalMapBuilder {
         let g = parseInt(result[2], 16);
         let b = parseInt(result[3], 16);
 
-        // Boost saturation for stronger political colors
-        [r, g, b] = this.boostSaturation(r, g, b, 1.35); // 35% saturation boost
+        // Boost saturation for stronger political colors (HOI4-style subtle enhancement)
+        [r, g, b] = this.boostSaturation(r, g, b, 1.15); // 15% saturation boost
 
         return [r, g, b];
     }

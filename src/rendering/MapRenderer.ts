@@ -60,9 +60,9 @@ export class MapRenderer {
         ctx.drawImage(this.canvasManager.processedTerrainCanvas, 0, 0);
 
         // LAYER 3: Draw political colors as overlay (HOI4 style)
-        // Using multiply blend for better color integration with terrain
-        ctx.globalCompositeOperation = 'multiply';
-        ctx.globalAlpha = 0.7;  // Stronger political color visibility
+        // Using soft-light blend for subtle color tinting without darkening
+        ctx.globalCompositeOperation = 'soft-light';
+        ctx.globalAlpha = 0.45;  // Subtle political color overlay
         ctx.drawImage(this.canvasManager.politicalCanvas, 0, 0);
         ctx.globalAlpha = 1.0;
         ctx.globalCompositeOperation = 'source-over';  // Reset blend mode
