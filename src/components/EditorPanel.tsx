@@ -198,20 +198,21 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                 </Button>
             </div>
 
-            <ScrollArea className="flex-1">
-                <div className="p-4 space-y-4">
+            <ScrollArea className="flex-1" style={{ pointerEvents: 'auto' }}>
+                <div className="p-4 space-y-4" style={{ pointerEvents: 'auto' }}>
                     {/* Mode Selection */}
-                    <Card className="bg-slate-800 border-slate-700">
+                    <Card className="bg-slate-800 border-slate-700" style={{ pointerEvents: 'auto' }}>
                         <CardHeader>
                             <CardTitle className="text-sm">Edit Mode</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            <div className="flex gap-2">
+                            <div className="flex gap-2" style={{ pointerEvents: 'auto' }}>
                                 <Button
                                     size="sm"
                                     variant={state.editMode === 'province' ? 'default' : 'outline'}
                                     onClick={() => editor.setEditMode('province')}
                                     className="flex-1"
+                                    style={{ pointerEvents: 'auto' }}
                                 >
                                     Province
                                 </Button>
@@ -220,6 +221,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                     variant={state.editMode === 'country' ? 'default' : 'outline'}
                                     onClick={() => editor.setEditMode('country')}
                                     className="flex-1"
+                                    style={{ pointerEvents: 'auto' }}
                                 >
                                     Country
                                 </Button>
@@ -228,6 +230,7 @@ export const EditorPanel: React.FC<EditorPanelProps> = ({
                                     variant={state.editMode === 'paint' ? 'default' : 'outline'}
                                     onClick={() => editor.setEditMode('paint')}
                                     className="flex-1"
+                                    style={{ pointerEvents: 'auto' }}
                                 >
                                     Paint
                                 </Button>

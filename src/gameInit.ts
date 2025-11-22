@@ -266,9 +266,8 @@ function mountEditorOverlay(provinceMap: ProvinceMap): void {
         editorContainer.style.position = 'fixed';
         editorContainer.style.top = '0';
         editorContainer.style.left = '0';
-        editorContainer.style.width = '100%';
-        editorContainer.style.height = '100%';
-        editorContainer.style.pointerEvents = 'none'; // Let clicks pass through
+        editorContainer.style.width = '0'; // Don't block map clicks
+        editorContainer.style.height = '0'; // Don't block map clicks
         editorContainer.style.zIndex = '100'; // Above game UI
         document.body.appendChild(editorContainer);
     }
