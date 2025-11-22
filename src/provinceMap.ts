@@ -277,10 +277,18 @@ export class ProvinceMap {
 
         // If in editor mode, handle editor province selection
         if (this.isEditorMode && this.provinceSelector && this.countryEditor) {
-            // Province selector will handle the selection
-            // The EditorPanel UI will react to this selection via the editor's state
+            // Select the province
             this.countryEditor.selectProvince(province.id);
-            console.log('[ProvinceMap] Editor mode: selected province', province.id);
+
+            // ALSO select the country that owns this province (for color editing)
+            const ownerCountryTag = this.provinceOwnerMap.get(province.id);
+            if (ownerCountryTag) {
+                this.countryEditor.selectCountry(ownerCountryTag);
+                console.log('[ProvinceMap] Editor mode: selected province', province.id, 'and country', ownerCountryTag);
+            } else {
+                this.countryEditor.selectCountry(null);
+                console.log('[ProvinceMap] Editor mode: selected province', province.id, '(no owner)');
+            }
             return;
         }
 
