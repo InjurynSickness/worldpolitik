@@ -92,7 +92,7 @@ export class PoliticalMapBuilder {
                 polData[i] = countryRgb[0];
                 polData[i + 1] = countryRgb[1];
                 polData[i + 2] = countryRgb[2];
-                polData[i + 3] = 255;
+                polData[i + 3] = 102; // 40% opacity for light tinting instead of full color
                 pixelsColored++;
             }
         }
@@ -124,8 +124,8 @@ export class PoliticalMapBuilder {
         let g = parseInt(result[2], 16);
         let b = parseInt(result[3], 16);
 
-        // Boost saturation for stronger political colors (HOI4-style subtle enhancement)
-        [r, g, b] = this.boostSaturation(r, g, b, 1.15); // 15% saturation boost
+        // Slight saturation boost for clearer political colors with light tint
+        [r, g, b] = this.boostSaturation(r, g, b, 1.05); // 5% saturation boost
 
         return [r, g, b];
     }

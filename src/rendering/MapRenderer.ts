@@ -33,12 +33,12 @@ export class MapRenderer {
             // Zoomed in: no political colors, only terrain + borders
             return 0.0;
         } else if (zoom <= zoomFadeEnd) {
-            // Zoomed out: full political color overlay
-            return 0.7;
+            // Zoomed out: full political color tint (light overlay)
+            return 1.0;
         } else {
             // Interpolate between zoomed in and zoomed out
             const t = (zoom - zoomFadeEnd) / (zoomFadeStart - zoomFadeEnd);
-            return 0.7 * (1 - t); // Fade from 0.7 to 0.0
+            return 1.0 * (1 - t); // Fade from 1.0 to 0.0
         }
     }
 
@@ -91,14 +91,14 @@ export class MapRenderer {
 
         // LAYER 3: Draw political colors (HOI4 ZOOM-BASED RENDERING)
         // Zoomed in: 0% opacity (invisible, only borders visible)
-        // Zoomed out: 70% opacity (political overview)
+        // Zoomed out: 100% opacity (political overview with light tint)
+        // Using source-over instead of multiply to avoid darkening/fog effect
         const politicalOpacity = this.calculatePoliticalOpacity();
         if (politicalOpacity > 0) {
-            ctx.globalCompositeOperation = 'multiply';
+            ctx.globalCompositeOperation = 'source-over';
             ctx.globalAlpha = politicalOpacity;
             ctx.drawImage(this.canvasManager.politicalCanvas, 0, 0);
             ctx.globalAlpha = 1.0;
-            ctx.globalCompositeOperation = 'source-over';
         }
 
         // LAYER 4: Draw country borders (HOI4 STYLE - ALWAYS VISIBLE)
