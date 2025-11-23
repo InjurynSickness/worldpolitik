@@ -17,6 +17,7 @@ import { CountryEditor } from './editor/CountryEditor.js';
 import { ProvinceSelector } from './editor/ProvinceSelector.js';
 import { BorderGenerator } from './rendering/BorderGenerator.js';
 import { HOI4TerrainRenderer } from './rendering/HOI4TerrainRenderer.js';
+import { ThreeJSMapRenderer } from './rendering/ThreeJSMapRenderer.js';
 import { logger } from './utils/Logger.js';
 
 const MAP_WIDTH = 5632;  // HOI4 map dimensions
@@ -31,6 +32,7 @@ export class ProvinceMap {
     private cameraController: CameraController;
     private interactionHandler: MapInteractionHandler;
     private mapRenderer: MapRenderer;
+    private threeJSRenderer: ThreeJSMapRenderer | null = null;
     private labelCalculator: CountryLabelCalculator;
     private labelRenderer: LabelRenderer;
     private mapEditor: MapEditor;
@@ -81,8 +83,30 @@ export class ProvinceMap {
         this.container = container;
         this.onCountrySelect = onCountrySelect;
         this.onMapReady = onMapReady;
-        
+
+        // Keep CanvasManager for UI overlays only (province selection, hover effects)
+        // It will create a visible canvas on top of the Three.js canvas
         this.canvasManager = new CanvasManager(container, MAP_WIDTH, MAP_HEIGHT);
+
+        // Initialize Three.js renderer (replaces Canvas 2D rendering)
+        // This canvas should be below the CanvasManager's visible canvas
+        const canvas = document.createElement('canvas');
+        canvas.id = 'three-canvas';
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.zIndex = '0';
+        // Insert before the visible canvas so it's below
+        container.insertBefore(canvas, this.canvasManager.visibleCanvas);
+
+        this.threeJSRenderer = new ThreeJSMapRenderer(canvas);
+
+        // Make the visible canvas transparent so Three.js shows through
+        this.canvasManager.visibleCanvas.style.backgroundColor = 'transparent';
+        this.canvasManager.visibleCanvas.style.zIndex = '1';
+        this.canvasManager.visibleCanvas.style.pointerEvents = 'auto'; // Ensure mouse events work
         this.cameraController = new CameraController(
             this.canvasManager.visibleCanvas.width,
             this.canvasManager.visibleCanvas.height,
@@ -121,7 +145,62 @@ export class ProvinceMap {
         window.addEventListener('resize', () => this.handleResize());
     }
 
-    private loadAssets(): void {
+    private async loadAssets(): Promise<void> {
+        logger.time('ProvinceMap', 'Total asset loading');
+        logger.info('ProvinceMap', '🚀 Starting asset loading with Three.js...');
+
+        try {
+            // Load provinces.png for province picking (still needed for click detection)
+            logger.info('ProvinceMap', '📥 Loading provinces.png for province picking...');
+            await this.loadImage(this.provinceImage, './provinces.png');
+            logger.info('ProvinceMap', '✓ provinces.png loaded');
+
+            // Draw to hidden canvas for province picking
+            this.canvasManager.hiddenCtx.drawImage(this.provinceImage, 0, 0);
+            logger.info('ProvinceMap', '✓ Province image drawn to hidden canvas');
+
+            // Initialize Three.js renderer (replaces old terrain processing)
+            logger.info('ProvinceMap', '🎮 Initializing Three.js renderer...');
+            if (this.threeJSRenderer) {
+                await this.threeJSRenderer.initialize();
+                logger.info('ProvinceMap', '✅ Three.js renderer initialized');
+            }
+
+            this.mapReady = true;
+
+            // Build political map (still needed for data, but not for Canvas 2D rendering)
+            logger.info('ProvinceMap', '🗺️ Building political map data...');
+            this.buildPoliticalMap();
+
+            // Start Three.js animation loop
+            if (this.threeJSRenderer) {
+                logger.info('ProvinceMap', '🎬 Starting Three.js animation loop...');
+                this.threeJSRenderer.startAnimationLoop(() => this.cameraController.camera);
+            }
+
+            logger.timeEnd('ProvinceMap', 'Total asset loading');
+            logger.info('ProvinceMap', '✅✅✅ Map fully ready with Three.js rendering');
+
+            // Notify map is ready
+            if (this.onMapReady) {
+                this.onMapReady();
+            }
+        } catch (error) {
+            logger.error('ProvinceMap', '❌ FAILED to load assets', error);
+            logger.showDebugPanel();
+        }
+    }
+
+    private loadImage(image: HTMLImageElement, src: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            image.onload = () => resolve();
+            image.onerror = reject;
+            image.src = src;
+        });
+    }
+
+    // Old asset loading callback (kept for reference, but unused with Three.js)
+    private loadAssetsOld(): void {
         logger.time('ProvinceMap', 'Total asset loading');
         logger.info('ProvinceMap', '🚀 Starting asset loading...');
         let assetsLoaded = 0;
