@@ -761,6 +761,21 @@ export class ProvinceMap {
         return this.mapRenderer.getPoliticalOpacity();
     }
 
+    /**
+     * Set whether country borders should be visible
+     */
+    public setBordersVisible(visible: boolean): void {
+        this.mapRenderer.setBordersVisible(visible);
+        this.requestRender();
+    }
+
+    /**
+     * Get whether country borders are currently visible
+     */
+    public getBordersVisible(): boolean {
+        return this.mapRenderer.getBordersVisible();
+    }
+
     public async calculateLabels(): Promise<void> {
         this.countryLabelCache = await this.labelCalculator.calculateLabelsAsync(this.provinceOwnerMap);
         this.drawOverlays();

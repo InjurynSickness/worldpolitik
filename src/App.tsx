@@ -80,11 +80,12 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
   // Called when the InteractiveCountrySelection map is fully loaded
   const onCountrySelectionMapReady = () => {
     logger.info('App', '✅ Country selection map is fully ready');
-    // InteractiveCountrySelection already set progress to 100%, just hide after brief delay
+    // Wait longer to ensure all assets (borders, terrain, etc.) are fully painted and interactive
+    // This prevents showing incomplete UI to the user
     setTimeout(() => {
       logger.info('App', 'Hiding loading screen for country selection');
       setShowFigmaLoading(false);
-    }, 300);
+    }, 600);
   };
 
   const onLoadGame = () => {
@@ -170,6 +171,8 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
             setLoadingProgress(100);
             setLoadingMessage("DONE!");
 
+            // Wait longer to ensure all assets (terrain, borders, political colors) are fully painted
+            // This prevents showing incomplete game state to the user
             setTimeout(() => {
               logger.info('App', 'Hiding loading screen and React UI');
               setShowFigmaLoading(false);
@@ -179,7 +182,7 @@ export default function App({ initializeGame, loadingScreen }: AppProps) {
               // Clean up callback
               delete (window as any).onMapReady;
               logger.info('App', '🎮 Game fully loaded and running!');
-            }, 300);
+            }, 600);
           };
 
           // Safety timeout - if map doesn't load in 15 seconds, show error

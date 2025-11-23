@@ -7,6 +7,7 @@ import { logger } from '../utils/Logger.js';
 export class MapRenderer {
     private terrainDebugLogged = false;
     private politicalOpacity: number = 0.65; // Default: 65% political colors, 35% terrain (optimal visibility)
+    private showBorders: boolean = true; // Default: borders visible
 
     constructor(
         private canvasManager: CanvasManager,
@@ -25,6 +26,20 @@ export class MapRenderer {
      */
     public getPoliticalOpacity(): number {
         return this.politicalOpacity;
+    }
+
+    /**
+     * Set whether borders should be visible
+     */
+    public setBordersVisible(visible: boolean): void {
+        this.showBorders = visible;
+    }
+
+    /**
+     * Get whether borders are currently visible
+     */
+    public getBordersVisible(): boolean {
+        return this.showBorders;
     }
 
     public render(): void {
@@ -85,11 +100,13 @@ export class MapRenderer {
             ctx.globalAlpha = 1.0;
         }
 
-        // LAYER 4: Draw country borders (HOI4 STYLE - ALWAYS VISIBLE)
-        // Borders are drawn at all zoom levels to distinguish countries
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(this.canvasManager.borderCanvas, 0, 0);
+        // LAYER 4: Draw country borders (HOI4 STYLE - TOGGLEABLE)
+        // Borders can be hidden for cleaner look during nation selection
+        if (this.showBorders) {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(this.canvasManager.borderCanvas, 0, 0);
+        }
 
         // LAYER 5: Draw rivers
         ctx.globalCompositeOperation = 'source-over';

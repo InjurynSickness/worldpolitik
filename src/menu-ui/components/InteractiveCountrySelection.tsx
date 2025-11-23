@@ -90,8 +90,13 @@ export function InteractiveCountrySelection({ onBack, onSelectCountry, onMapRead
             // This balances country visibility with terrain details for strategic depth
             provinceMapInstance.setPoliticalOpacity(0.65);
 
+            // Hide country borders for cleaner nation selection view
+            // Borders make the selection screen look cluttered
+            provinceMapInstance.setBordersVisible(false);
+
             logger.info('InteractiveCountrySelection', '✅ Map updated with countries and provinces');
             logger.info('InteractiveCountrySelection', 'Political colors enabled at 65% opacity with terrain visible');
+            logger.info('InteractiveCountrySelection', 'Country borders hidden for cleaner selection view');
             logger.info('InteractiveCountrySelection', 'Now waiting for ProvinceMap to finish loading assets...');
           })
           .catch((error) => {
