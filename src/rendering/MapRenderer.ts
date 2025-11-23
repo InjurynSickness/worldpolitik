@@ -68,9 +68,11 @@ export class MapRenderer {
         ctx.globalCompositeOperation = 'source-over';  // Reset blend mode
 
         // LAYER 4: Draw borders (country borders from border textures)
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = 1.0;
-        ctx.drawImage(this.canvasManager.borderCanvas, 0, 0);
+        // DISABLED: Border texture contains incorrect data (horizontal lines)
+        // TODO: Generate proper borders or use correct border texture
+        // ctx.globalCompositeOperation = 'source-over';
+        // ctx.globalAlpha = 1.0;
+        // ctx.drawImage(this.canvasManager.borderCanvas, 0, 0);
 
         // LAYER 5: Draw rivers
         ctx.globalCompositeOperation = 'source-over';
