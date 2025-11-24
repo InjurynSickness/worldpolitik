@@ -84,6 +84,14 @@ export class ProvinceMap {
         this.onCountrySelect = onCountrySelect;
         this.onMapReady = onMapReady;
 
+        // Clean up any existing canvases in the container (from previous map instances)
+        const existingCanvases = container.querySelectorAll('canvas');
+        existingCanvases.forEach(canvas => {
+            if (canvas.parentElement) {
+                canvas.parentElement.removeChild(canvas);
+            }
+        });
+
         // Keep CanvasManager for UI overlays only (province selection, hover effects)
         // It will create a visible canvas on top of the Three.js canvas
         this.canvasManager = new CanvasManager(container, MAP_WIDTH, MAP_HEIGHT);
@@ -802,6 +810,17 @@ export class ProvinceMap {
     }
     
     public destroy(): void {
+        // Clean up Three.js renderer
+        if (this.threeJSRenderer) {
+            this.threeJSRenderer.dispose();
+        }
+
+        // Remove Three.js canvas from DOM
+        const threeCanvas = this.container.querySelector('#three-canvas');
+        if (threeCanvas && threeCanvas.parentElement) {
+            threeCanvas.parentElement.removeChild(threeCanvas);
+        }
+
         this.canvasManager.destroy();
         this.interactionHandler.destroy();
         window.removeEventListener('resize', () => this.handleResize());
