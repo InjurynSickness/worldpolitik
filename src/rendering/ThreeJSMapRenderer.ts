@@ -188,7 +188,21 @@ export class ThreeJSMapRenderer {
     this.terrainMesh.position.set(0, 0, 0);
     this.scene.add(this.terrainMesh);
 
-    // Store uniforms for political overlay (we'll add this back as a separate mesh)
+    // Add POLITICAL OVERLAY mesh on top of terrain (z = 0.1)
+    const politicalGeometry = new THREE.PlaneGeometry(this.mapWidth, this.mapHeight, 1, 1);
+    const politicalMaterial = new THREE.MeshBasicMaterial({
+      map: politicalTexture,
+      transparent: true,
+      opacity: 0.65, // 65% political overlay (adjust to taste)
+      side: THREE.FrontSide,
+      depthTest: false, // Always render on top
+    });
+
+    this.politicalOverlayMesh = new THREE.Mesh(politicalGeometry, politicalMaterial);
+    this.politicalOverlayMesh.position.set(0, 0, 0.1); // Slightly above terrain
+    this.scene.add(this.politicalOverlayMesh);
+
+    // Store uniforms for later updates
     this.terrainUniforms = {
       terrainCompositeTexture: { value: terrainCompositeTexture },
       politicalTexture: { value: politicalTexture },
@@ -196,6 +210,7 @@ export class ThreeJSMapRenderer {
     };
 
     console.log('Terrain mesh created (using pre-processed composite)');
+    console.log('Political overlay mesh added (65% opacity)');
   }
 
   private async createWaterMesh(waterNormal1: THREE.Texture, waterNormal2: THREE.Texture): Promise<void> {
@@ -306,6 +321,12 @@ export class ThreeJSMapRenderer {
     texture.image = canvas;
     texture.needsUpdate = true;
 
+    // Also update the political overlay mesh material
+    if (this.politicalOverlayMesh && this.politicalOverlayMesh.material) {
+      (this.politicalOverlayMesh.material as THREE.MeshBasicMaterial).map = texture;
+      (this.politicalOverlayMesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
+    }
+
     console.log('Political texture updated from canvas', {
       width: canvas.width,
       height: canvas.height
@@ -316,8 +337,16 @@ export class ThreeJSMapRenderer {
    * Set the political overlay opacity (0 = hidden, 1 = full)
    */
   setPoliticalOpacity(opacity: number): void {
+    const clampedOpacity = Math.max(0, Math.min(1, opacity));
+
+    // Update stored value
     if (this.terrainUniforms && this.terrainUniforms.politicalOpacity) {
-      this.terrainUniforms.politicalOpacity.value = Math.max(0, Math.min(1, opacity));
+      this.terrainUniforms.politicalOpacity.value = clampedOpacity;
+    }
+
+    // Update the actual mesh material opacity
+    if (this.politicalOverlayMesh && this.politicalOverlayMesh.material) {
+      (this.politicalOverlayMesh.material as THREE.MeshBasicMaterial).opacity = clampedOpacity;
     }
   }
 
