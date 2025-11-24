@@ -36,19 +36,18 @@ vec3 blendOverlay(vec3 base, vec3 blend) {
 }
 
 void main() {
-    // Step 1: Read terrain type index (0-255)
+    // Step 1: WATER MASK - Use political map alpha channel
+    // The political map (provinces.png) is fully transparent over water
+    // This is the most reliable way to detect water pixels
+    vec4 countryColor = texture2D(politicalTexture, vUv);
+    if (countryColor.a < 0.1) {
+        discard; // Water pixel - show water mesh below
+    }
+
+    // Step 2: Read terrain type index (0-255)
     // Use .r channel, multiply by 255 to get actual index
     vec4 indexSample = texture2D(terrainIndexTexture, vUv);
     float terrainIndex = indexSample.r * 255.0;
-
-    // Step 2: Discard water pixels (index 0 or very low values)
-    // This creates transparency where water should be, showing the blue plane below
-    // IMPORTANT: Increased threshold from 0.5 to 1.0 to catch all water types
-    // Sometimes water might be index 0 or 1 depending on terrain system
-    if (terrainIndex < 1.0) {
-        discard;
-        return;
-    }
 
     // Step 3: Calculate which tile in the atlas grid
     float col = mod(terrainIndex, TILES_PER_ROW);
@@ -87,7 +86,7 @@ void main() {
     vec3 litColor = baseColor * lighting;
 
     // Step 11: Blend political colors on top (if enabled)
-    vec4 countryColor = texture2D(politicalTexture, vUv);
+    // countryColor already sampled at the beginning for water mask
     if (politicalOpacity > 0.0 && countryColor.a > 0.1) {
         // Blend political color using overlay for consistent look
         vec3 politicalBlended = blendOverlay(litColor, countryColor.rgb);

@@ -92,13 +92,13 @@ export class ThreeJSMapRenderer {
       waterNormal1,
       waterNormal2,
     ] = await Promise.all([
-      this.loadTexture(textureLoader, '/terrain_indexed.png', THREE.NearestFilter, THREE.NearestFilter, false),
-      this.loadTexture(textureLoader, '/atlas0.png', THREE.LinearFilter, THREE.LinearFilter, true),
-      this.loadTexture(textureLoader, '/colormap_land.png', THREE.LinearFilter, THREE.LinearFilter, false),
-      this.loadTexture(textureLoader, '/heightmap.png', THREE.LinearFilter, THREE.LinearFilter, false),
-      this.loadTexture(textureLoader, '/atlas_normal0.png', THREE.LinearFilter, THREE.LinearFilter, false),
-      this.loadTexture(textureLoader, '/colormap_water_1.png', THREE.LinearFilter, THREE.LinearFilter, true),
-      this.loadTexture(textureLoader, '/colormap_water_2.png', THREE.LinearFilter, THREE.LinearFilter, true),
+      this.loadTexture(textureLoader, '/terrain_indexed.png', THREE.NearestFilter, THREE.NearestFilter, false, false),
+      this.loadTexture(textureLoader, '/atlas0.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, true, true),
+      this.loadTexture(textureLoader, '/colormap_land.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, false, true),
+      this.loadTexture(textureLoader, '/heightmap.png', THREE.LinearFilter, THREE.LinearFilter, false, false),
+      this.loadTexture(textureLoader, '/atlas_normal0.png', THREE.LinearFilter, THREE.LinearFilter, false, false),
+      this.loadTexture(textureLoader, '/colormap_water_1.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, true, true),
+      this.loadTexture(textureLoader, '/colormap_water_2.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, true, true),
     ]);
 
     console.log('All textures loaded');
@@ -123,7 +123,8 @@ export class ThreeJSMapRenderer {
     url: string,
     minFilter: THREE.TextureFilter,
     magFilter: THREE.TextureFilter,
-    repeat: boolean = true
+    repeat: boolean = true,
+    useAnisotropy: boolean = false
   ): Promise<THREE.Texture> {
     return new Promise((resolve, reject) => {
       loader.load(
@@ -138,6 +139,11 @@ export class ThreeJSMapRenderer {
           } else {
             texture.wrapS = THREE.ClampToEdgeWrapping;
             texture.wrapT = THREE.ClampToEdgeWrapping;
+          }
+          // Apply anisotropic filtering for improved clarity at shallow angles
+          if (useAnisotropy) {
+            const maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
+            texture.anisotropy = maxAnisotropy;
           }
           resolve(texture);
         },
