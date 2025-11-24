@@ -275,17 +275,17 @@ export class ProvinceMap {
             }
         };
 
-        // Load terrain.png as fallback only (not counted in asset loading)
-        // The HOI4TerrainRenderer will provide the primary terrain textures
-        logger.info('ProvinceMap', '📥 Loading terrain.png (fallback)...');
+        // Load final_map_composite.png - pre-processed with de-dithering and water transparency
+        // This is the output from Python script process_map_v2.py
+        logger.info('ProvinceMap', '📥 Loading final_map_composite.png (de-dithered)...');
         this.terrainImage.onload = () => {
-            logger.info('ProvinceMap', '✓ Fallback terrain.png loaded');
+            logger.info('ProvinceMap', '✓ De-dithered composite loaded');
         };
         this.terrainImage.onerror = (e) => {
-            logger.error('ProvinceMap', '❌ FAILED to load terrain.png', { path: './terrain.png', error: e });
+            logger.error('ProvinceMap', '❌ FAILED to load final_map_composite.png', { path: './final_map_composite.png', error: e });
             logger.showDebugPanel(); // Auto-show debug panel on error
         };
-        this.terrainImage.src = './terrain.png';
+        this.terrainImage.src = './final_map_composite.png';
 
         logger.info('ProvinceMap', '📥 Loading provinces.png...');
         this.provinceImage.onload = () => onAssetLoad('provinces.png');
@@ -399,45 +399,21 @@ export class ProvinceMap {
             logger.info('ProvinceMap', '✅ HOI4 terrain atlas rendering complete (water masked, colormap tinted)');
 
         } else {
-            logger.warn('ProvinceMap', '⚠️ HOI4 terrain renderer NOT ready, using fallback terrain.png', {
+            logger.warn('ProvinceMap', '⚠️ HOI4 terrain renderer NOT ready, using final_map_composite.png', {
                 hasRenderer: !!this.hoi4TerrainRenderer,
                 isReady: this.hoi4TerrainRenderer?.isReady()
             });
-            // Use terrain.png directly at full size (not tiled)
-            logger.info('ProvinceMap', '🗻 Using terrain.png at full size...');
+            // Use final_map_composite.png - pre-processed with Python (de-dithered, water transparency)
+            logger.info('ProvinceMap', '🗻 Using final_map_composite.png (pre-processed, no pixel manipulation needed)...');
 
-            // Draw terrain image at full size
+            // JUST DRAW IT - The Python script already handled:
+            // 1. De-dithering (median filter eliminated checkerboard grid)
+            // 2. Water layer compositing (water is visible, not opaque)
+            // 3. Normal map lighting (shadows applied)
+            ctx.clearRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
             ctx.drawImage(this.terrainImage, 0, 0, MAP_WIDTH, MAP_HEIGHT);
 
-            const terrainImageData = ctx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT);
-            const terrainData = terrainImageData.data;
-
-            const maskImageData = this.canvasManager.hiddenCtx.getImageData(0, 0, MAP_WIDTH, MAP_HEIGHT);
-            const maskData = maskImageData.data;
-
-            let waterPixels = 0;
-            let landPixels = 0;
-
-            for (let i = 0; i < terrainData.length; i += 4) {
-                const r = maskData[i];
-                const g = maskData[i + 1];
-                const b = maskData[i + 2];
-
-                if (r < 10 && g < 10 && b < 10) {
-                    terrainData[i + 3] = 0;
-                    waterPixels++;
-                } else {
-                    terrainData[i + 3] = 255;
-                    landPixels++;
-                }
-            }
-
-            ctx.putImageData(terrainImageData, 0, 0);
-
-            logger.info('ProvinceMap', '✅ Fallback terrain processing complete', {
-                waterPixels,
-                landPixels
-            });
+            logger.info('ProvinceMap', '✅ Pre-processed composite rendered (no dithering, water visible)');
         }
     }
 
