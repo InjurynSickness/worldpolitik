@@ -1,359 +1,347 @@
-import * as THREE from 'three';
-import terrainVertexShader from '../shaders/terrainVertex.glsl?raw';
-import terrainFragmentShader from '../shaders/terrainFragment.glsl?raw';
-import waterVertexShader from '../shaders/waterVertex.glsl?raw';
-import waterFragmentShader from '../shaders/waterFragment.glsl?raw';
+// /src/rendering/ThreeJSMapRenderer.ts
+// Complete rewrite: Uses Canvas 2D canvases as Three.js textures
+// Version 2.0.0 - Gemini's layered approach
 
-export interface Camera {
-  x: number;
-  y: number;
-  zoom: number;
-}
+import * as THREE from 'three';
 
 export class ThreeJSMapRenderer {
+  private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
   private camera: THREE.OrthographicCamera;
-  private renderer: THREE.WebGLRenderer;
-  private terrainMesh: THREE.Mesh | null = null;
+
+  // Group to hold all map layers (allows pan/zoom transform)
+  private mapGroup: THREE.Group;
+
+  // Meshes for each layer
   private waterMesh: THREE.Mesh | null = null;
-  private borderLines: THREE.LineSegments | null = null;
-  private politicalOverlayMesh: THREE.Mesh | null = null;
+  private terrainMesh: THREE.Mesh | null = null;
+  private politicalMesh: THREE.Mesh | null = null;
+  private riversMesh: THREE.Mesh | null = null;
+  private bordersMesh: THREE.Mesh | null = null;
+  private overlaysMesh: THREE.Mesh | null = null;
 
-  private mapWidth: number = 5632;
-  private mapHeight: number = 2048;
+  // Textures (updated from Canvas 2D)
+  private terrainTexture: THREE.CanvasTexture | null = null;
+  private politicalTexture: THREE.CanvasTexture | null = null;
+  private riversTexture: THREE.CanvasTexture | null = null;
+  private bordersTexture: THREE.CanvasTexture | null = null;
+  private overlaysTexture: THREE.CanvasTexture | null = null;
 
-  private animationFrameId: number | null = null;
-  private startTime: number = Date.now();
+  // Map dimensions
+  private mapWidth: number;
+  private mapHeight: number;
 
-  // Shader uniforms
-  private terrainUniforms: any = null;
-  private waterUniforms: any = null;
+  constructor(container: HTMLElement, mapWidth: number, mapHeight: number) {
+    console.log('[ThreeJSMapRenderer v2.0] Initializing...');
 
-  constructor(private canvas: HTMLCanvasElement) {
-    // Create Three.js renderer
+    this.mapWidth = mapWidth;
+    this.mapHeight = mapHeight;
+
+    // 1. Create WebGL Renderer
     this.renderer = new THREE.WebGLRenderer({
-      canvas: this.canvas,
-      antialias: true,
       alpha: false,
+      antialias: false,
+      powerPreference: 'high-performance'
     });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setClearColor(0x334a5e); // Ocean background color
 
-    // Create scene
+    // Replace any existing canvas
+    const existingCanvas = container.querySelector('canvas');
+    if (existingCanvas) existingCanvas.remove();
+    container.appendChild(this.renderer.domElement);
+
+    // 2. Setup Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x000000);
+    this.mapGroup = new THREE.Group();
+    this.scene.add(this.mapGroup);
 
-    // Create orthographic camera (top-down 2D view)
-    const aspect = window.innerWidth / window.innerHeight;
+    // 3. Setup Orthographic Camera (2D view)
     this.camera = new THREE.OrthographicCamera(
-      -this.mapWidth / 2,
-      this.mapWidth / 2,
-      this.mapHeight / 2,
-      -this.mapHeight / 2,
-      0.1,
-      1000
+      0, container.clientWidth,
+      0, container.clientHeight,
+      -100, 100
     );
-    this.camera.position.set(0, 0, 100);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.position.z = 10;
 
-    // Handle window resize
-    window.addEventListener('resize', this.handleResize.bind(this));
+    console.log('[ThreeJSMapRenderer v2.0] Initialized successfully');
   }
 
-  private handleResize(): void {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
+  /**
+   * Initialize all map layers from Canvas 2D canvases
+   * Call this after all canvases are prepared
+   */
+  public initMapLayers(
+    waterCanvas: HTMLCanvasElement,
+    terrainCanvas: HTMLCanvasElement,
+    politicalCanvas: HTMLCanvasElement,
+    riversCanvas: HTMLCanvasElement,
+    bordersCanvas: HTMLCanvasElement,
+    overlaysCanvas: HTMLCanvasElement
+  ): void {
+    console.log('[ThreeJSMapRenderer v2.0] Setting up map layers...');
 
-    this.renderer.setSize(width, height);
-
-    const aspect = width / height;
-    const frustumHeight = this.mapHeight;
-    const frustumWidth = frustumHeight * aspect;
-
-    this.camera.left = -frustumWidth / 2;
-    this.camera.right = frustumWidth / 2;
-    this.camera.top = frustumHeight / 2;
-    this.camera.bottom = -frustumHeight / 2;
-    this.camera.updateProjectionMatrix();
-  }
-
-  async initialize(): Promise<void> {
-    console.log('Initializing Three.js map renderer...');
-
-    // Load all textures
-    const textureLoader = new THREE.TextureLoader();
-
-    const [
-      terrainCompositeTexture,
-      atlasTexture,
-      colormapTexture,
-      heightmapTexture,
-      normalMapTexture,
-      waterNormal1,
-      waterNormal2,
-    ] = await Promise.all([
-      // Use pre-processed final_map_composite.png (de-dithered by Python script)
-      this.loadTexture(textureLoader, '/final_map_composite.png', THREE.LinearFilter, THREE.LinearFilter, false, false),
-      this.loadTexture(textureLoader, '/atlas0.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, true, true),
-      this.loadTexture(textureLoader, '/colormap_land.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, false, true),
-      this.loadTexture(textureLoader, '/heightmap.png', THREE.LinearFilter, THREE.LinearFilter, false, false),
-      this.loadTexture(textureLoader, '/atlas_normal0.png', THREE.LinearFilter, THREE.LinearFilter, false, false),
-      this.loadTexture(textureLoader, '/colormap_water_1.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, true, true),
-      this.loadTexture(textureLoader, '/colormap_water_2.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, true, true),
-    ]);
-
-    console.log('All textures loaded');
-
-    // Create terrain mesh
-    await this.createTerrainMesh(
-      terrainCompositeTexture,
-      atlasTexture,
-      colormapTexture,
-      heightmapTexture,
-      normalMapTexture
-    );
-
-    // Create water mesh
-    await this.createWaterMesh(waterNormal1, waterNormal2);
-
-    console.log('Three.js initialization complete');
-  }
-
-  private loadTexture(
-    loader: THREE.TextureLoader,
-    url: string,
-    minFilter: THREE.TextureFilter,
-    magFilter: THREE.TextureFilter,
-    repeat: boolean = true,
-    useAnisotropy: boolean = false
-  ): Promise<THREE.Texture> {
-    return new Promise((resolve, reject) => {
-      loader.load(
-        url,
-        (texture) => {
-          texture.minFilter = minFilter;
-          texture.magFilter = magFilter;
-          // RepeatWrapping prevents stretching artifacts at edges
-          if (repeat) {
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-          } else {
-            texture.wrapS = THREE.ClampToEdgeWrapping;
-            texture.wrapT = THREE.ClampToEdgeWrapping;
-          }
-          // Apply anisotropic filtering for improved clarity at shallow angles
-          if (useAnisotropy) {
-            const maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
-            texture.anisotropy = maxAnisotropy;
-          }
-          resolve(texture);
-        },
-        undefined,
-        reject
-      );
-    });
-  }
-
-  private async createTerrainMesh(
-    terrainCompositeTexture: THREE.Texture,
-    atlasTexture: THREE.Texture,
-    colormapTexture: THREE.Texture,
-    heightmapTexture: THREE.Texture,
-    normalMapTexture: THREE.Texture
-  ): Promise<void> {
-    // Create plane geometry (simple, no heightmap displacement for now)
-    const geometry = new THREE.PlaneGeometry(
-      this.mapWidth,
-      this.mapHeight,
-      1,
-      1
-    );
-
-    // Create a blank political texture (will be updated later from canvas)
-    const politicalTexture = new THREE.Texture();
-    politicalTexture.minFilter = THREE.LinearFilter;
-    politicalTexture.magFilter = THREE.LinearFilter;
-    politicalTexture.wrapS = THREE.ClampToEdgeWrapping;
-    politicalTexture.wrapT = THREE.ClampToEdgeWrapping;
-
-    // SIMPLIFIED: Use pre-rendered composite directly instead of shader-based terrain
-    // The Python script already did all the heavy lifting (de-dithering, water, lighting)
-    const material = new THREE.MeshBasicMaterial({
-      map: terrainCompositeTexture,
-      transparent: false,
-      side: THREE.FrontSide,
-    });
-
-    this.terrainMesh = new THREE.Mesh(geometry, material);
-    this.terrainMesh.position.set(0, 0, 0);
-    this.scene.add(this.terrainMesh);
-
-    // Add POLITICAL OVERLAY mesh on top of terrain (z = 0.1)
-    const politicalGeometry = new THREE.PlaneGeometry(this.mapWidth, this.mapHeight, 1, 1);
-    const politicalMaterial = new THREE.MeshBasicMaterial({
-      map: politicalTexture,
-      transparent: true,
-      opacity: 0.65, // 65% political overlay (adjust to taste)
-      side: THREE.FrontSide,
-      depthTest: false, // Always render on top
-    });
-
-    this.politicalOverlayMesh = new THREE.Mesh(politicalGeometry, politicalMaterial);
-    this.politicalOverlayMesh.position.set(0, 0, 0.1); // Slightly above terrain
-    this.scene.add(this.politicalOverlayMesh);
-
-    // Store uniforms for later updates
-    this.terrainUniforms = {
-      terrainCompositeTexture: { value: terrainCompositeTexture },
-      politicalTexture: { value: politicalTexture },
-      politicalOpacity: { value: 0.65 },
-    };
-
-    console.log('Terrain mesh created (using pre-processed composite)');
-    console.log('Political overlay mesh added (65% opacity)');
-  }
-
-  private async createWaterMesh(waterNormal1: THREE.Texture, waterNormal2: THREE.Texture): Promise<void> {
-    // Water plane sits below terrain (simple solid blue for now - no waves to reduce lag)
+    // Create plane geometry (reused for all layers)
     const geometry = new THREE.PlaneGeometry(this.mapWidth, this.mapHeight);
+    // Translate so (0,0) is top-left corner (Canvas 2D style)
+    geometry.translate(this.mapWidth / 2, this.mapHeight / 2, 0);
 
-    // Simple solid blue water (animated waves disabled to reduce lag)
-    this.waterUniforms = {
-      waterColor: { value: new THREE.Color(0x5a7d9a) }, // Lighter HOI4-style ocean blue
-    };
+    // Layer 0: Water Background (z = -1)
+    this.waterMesh = this.createLayer(waterCanvas, geometry, -1, 1.0, false);
+    console.log('[ThreeJSMapRenderer v2.0]   Layer 0: Water (z=-1)');
 
-    const material = new THREE.ShaderMaterial({
-      uniforms: this.waterUniforms,
-      vertexShader: waterVertexShader,
-      fragmentShader: waterFragmentShader,
-      side: THREE.FrontSide,
+    // Layer 1: Terrain (z = 0)
+    this.terrainTexture = new THREE.CanvasTexture(terrainCanvas);
+    this.terrainTexture.minFilter = THREE.LinearFilter;
+    this.terrainTexture.magFilter = THREE.LinearFilter;
+
+    this.terrainMesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        map: this.terrainTexture,
+        transparent: true,
+        opacity: 1.0
+      })
+    );
+    this.terrainMesh.position.z = 0;
+    this.mapGroup.add(this.terrainMesh);
+    console.log('[ThreeJSMapRenderer v2.0]   Layer 1: Terrain (z=0)');
+
+    // Layer 2: Political Colors (z = 0.1)
+    this.politicalTexture = new THREE.CanvasTexture(politicalCanvas);
+    this.politicalTexture.minFilter = THREE.NearestFilter; // Sharp borders
+    this.politicalTexture.magFilter = THREE.NearestFilter;
+
+    this.politicalMesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        map: this.politicalTexture,
+        transparent: true,
+        opacity: 0.65, // 65% opacity for country colors
+        depthTest: false
+      })
+    );
+    this.politicalMesh.position.z = 0.1;
+    this.mapGroup.add(this.politicalMesh);
+    console.log('[ThreeJSMapRenderer v2.0]   Layer 2: Political overlay (z=0.1, 65% opacity)');
+
+    // Layer 3: Rivers (z = 0.2)
+    this.riversTexture = new THREE.CanvasTexture(riversCanvas);
+    this.riversMesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        map: this.riversTexture,
+        transparent: true,
+        opacity: 0.6,
+        depthTest: false
+      })
+    );
+    this.riversMesh.position.z = 0.2;
+    this.mapGroup.add(this.riversMesh);
+    console.log('[ThreeJSMapRenderer v2.0]   Layer 3: Rivers (z=0.2)');
+
+    // Layer 4: Borders (z = 0.3)
+    this.bordersTexture = new THREE.CanvasTexture(bordersCanvas);
+    this.bordersMesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        map: this.bordersTexture,
+        transparent: true,
+        depthTest: false
+      })
+    );
+    this.bordersMesh.position.z = 0.3;
+    this.mapGroup.add(this.bordersMesh);
+    console.log('[ThreeJSMapRenderer v2.0]   Layer 4: Borders (z=0.3)');
+
+    // Layer 5: Overlays/Labels (z = 0.4)
+    this.overlaysTexture = new THREE.CanvasTexture(overlaysCanvas);
+    this.overlaysMesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({
+        map: this.overlaysTexture,
+        transparent: true,
+        depthTest: false
+      })
+    );
+    this.overlaysMesh.position.z = 0.4;
+    this.mapGroup.add(this.overlaysMesh);
+    console.log('[ThreeJSMapRenderer v2.0]   Layer 5: Overlays (z=0.4)');
+
+    console.log('[ThreeJSMapRenderer v2.0] All layers initialized');
+    this.renderFrame();
+  }
+
+  private createLayer(
+    canvas: HTMLCanvasElement,
+    geometry: THREE.PlaneGeometry,
+    zPosition: number,
+    opacity: number,
+    depthTest: boolean
+  ): THREE.Mesh {
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      opacity: opacity,
+      depthTest: depthTest
     });
 
-    this.waterMesh = new THREE.Mesh(geometry, material);
-    this.waterMesh.position.set(0, 0, -1); // Below terrain (z = -1)
-    this.scene.add(this.waterMesh);
-
-    console.log('Water mesh created (simple blue)');
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.z = zPosition;
+    this.mapGroup.add(mesh);
+    return mesh;
   }
 
-  updateCamera(camera: Camera): void {
-    // Update orthographic camera based on camera state
-    const aspect = window.innerWidth / window.innerHeight;
-    const zoom = camera.zoom;
+  /**
+   * Update texture when Canvas 2D changes
+   */
+  public updateTerrainTexture(canvas: HTMLCanvasElement): void {
+    if (this.terrainTexture) {
+      this.terrainTexture.image = canvas;
+      this.terrainTexture.needsUpdate = true;
+      this.renderFrame();
+    }
+  }
 
-    const frustumHeight = this.mapHeight / zoom;
-    const frustumWidth = frustumHeight * aspect;
+  public updatePoliticalTexture(canvas: HTMLCanvasElement): void {
+    if (this.politicalTexture) {
+      this.politicalTexture.image = canvas;
+      this.politicalTexture.needsUpdate = true;
+      this.renderFrame();
+    }
+  }
 
-    this.camera.left = -frustumWidth / 2;
-    this.camera.right = frustumWidth / 2;
-    this.camera.top = frustumHeight / 2;
-    this.camera.bottom = -frustumHeight / 2;
+  public updateRiversTexture(canvas: HTMLCanvasElement): void {
+    if (this.riversTexture) {
+      this.riversTexture.image = canvas;
+      this.riversTexture.needsUpdate = true;
+      this.renderFrame();
+    }
+  }
+
+  public updateBordersTexture(canvas: HTMLCanvasElement): void {
+    if (this.bordersTexture) {
+      this.bordersTexture.image = canvas;
+      this.bordersTexture.needsUpdate = true;
+      this.renderFrame();
+    }
+  }
+
+  public updateOverlaysTexture(canvas: HTMLCanvasElement): void {
+    if (this.overlaysTexture) {
+      this.overlaysTexture.image = canvas;
+      this.overlaysTexture.needsUpdate = true;
+      this.renderFrame();
+    }
+  }
+
+  /**
+   * Set political overlay opacity (0 = terrain only, 1 = full political colors)
+   */
+  public setPoliticalOpacity(opacity: number): void {
+    if (this.politicalMesh && this.politicalMesh.material) {
+      (this.politicalMesh.material as THREE.MeshBasicMaterial).opacity =
+        Math.max(0, Math.min(1, opacity));
+      this.renderFrame();
+    }
+  }
+
+  public getPoliticalOpacity(): number {
+    if (this.politicalMesh && this.politicalMesh.material) {
+      return (this.politicalMesh.material as THREE.MeshBasicMaterial).opacity;
+    }
+    return 0.65;
+  }
+
+  /**
+   * Set borders visibility
+   */
+  public setBordersVisible(visible: boolean): void {
+    if (this.bordersMesh) {
+      this.bordersMesh.visible = visible;
+      this.renderFrame();
+    }
+  }
+
+  /**
+   * Handle window resize
+   */
+  public resize(width: number, height: number): void {
+    this.renderer.setSize(width, height);
+    this.camera.left = 0;
+    this.camera.right = width;
+    this.camera.top = 0;
+    this.camera.bottom = height;
     this.camera.updateProjectionMatrix();
-
-    // Update camera position for panning
-    this.camera.position.set(camera.x, -camera.y, 100);
+    this.renderFrame();
   }
 
-  render(camera: Camera): void {
-    // Update camera
-    this.updateCamera(camera);
+  /**
+   * Main render method - called on camera movement
+   * Matches Canvas 2D API: translate(x, y) then scale(zoom, zoom)
+   */
+  public render(cameraX: number, cameraY: number, zoom: number): void {
+    // Apply camera transform to the map group
+    this.mapGroup.position.set(cameraX, cameraY, 0);
+    this.mapGroup.scale.set(zoom, zoom, 1);
 
-    // Render scene
+    this.renderFrame();
+  }
+
+  /**
+   * Force a render (for animations)
+   */
+  public renderFrame(): void {
     this.renderer.render(this.scene, this.camera);
   }
 
-  startAnimationLoop(getCamera: () => Camera): void {
-    const animate = () => {
-      this.animationFrameId = requestAnimationFrame(animate);
-      const camera = getCamera();
-      this.render(camera);
-    };
-    animate();
-  }
+  /**
+   * Cleanup
+   */
+  public dispose(): void {
+    console.log('[ThreeJSMapRenderer v2.0] Disposing...');
 
-  stopAnimationLoop(): void {
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-  }
+    // Dispose geometries and materials
+    this.mapGroup.children.forEach(child => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry.dispose();
+        if (child.material instanceof THREE.Material) {
+          child.material.dispose();
+        }
+      }
+    });
 
-  dispose(): void {
-    this.stopAnimationLoop();
-    window.removeEventListener('resize', this.handleResize.bind(this));
-
-    // Dispose Three.js resources
-    if (this.terrainMesh) {
-      this.terrainMesh.geometry.dispose();
-      (this.terrainMesh.material as THREE.Material).dispose();
-    }
-    if (this.waterMesh) {
-      this.waterMesh.geometry.dispose();
-      (this.waterMesh.material as THREE.Material).dispose();
-    }
+    // Dispose textures
+    [this.terrainTexture, this.politicalTexture, this.riversTexture,
+     this.bordersTexture, this.overlaysTexture].forEach(tex => {
+      if (tex) tex.dispose();
+    });
 
     this.renderer.dispose();
   }
 
-  getRenderer(): THREE.WebGLRenderer {
-    return this.renderer;
-  }
-
-  getScene(): THREE.Scene {
-    return this.scene;
-  }
-
-  getCamera(): THREE.OrthographicCamera {
-    return this.camera;
+  /**
+   * Get the WebGL canvas element
+   */
+  public getCanvas(): HTMLCanvasElement {
+    return this.renderer.domElement;
   }
 
   /**
-   * Update the political texture from a canvas element
-   * Call this after the political map is rebuilt
+   * Start animation loop (for smooth animations)
    */
-  updatePoliticalTexture(canvas: HTMLCanvasElement): void {
-    if (!this.terrainUniforms || !this.terrainUniforms.politicalTexture) {
-      console.warn('Political texture uniform not initialized');
-      return;
-    }
-
-    const texture = this.terrainUniforms.politicalTexture.value;
-    texture.image = canvas;
-    texture.needsUpdate = true;
-
-    // Also update the political overlay mesh material
-    if (this.politicalOverlayMesh && this.politicalOverlayMesh.material) {
-      (this.politicalOverlayMesh.material as THREE.MeshBasicMaterial).map = texture;
-      (this.politicalOverlayMesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
-    }
-
-    console.log('Political texture updated from canvas', {
-      width: canvas.width,
-      height: canvas.height
-    });
-  }
-
-  /**
-   * Set the political overlay opacity (0 = hidden, 1 = full)
-   */
-  setPoliticalOpacity(opacity: number): void {
-    const clampedOpacity = Math.max(0, Math.min(1, opacity));
-
-    // Update stored value
-    if (this.terrainUniforms && this.terrainUniforms.politicalOpacity) {
-      this.terrainUniforms.politicalOpacity.value = clampedOpacity;
-    }
-
-    // Update the actual mesh material opacity
-    if (this.politicalOverlayMesh && this.politicalOverlayMesh.material) {
-      (this.politicalOverlayMesh.material as THREE.MeshBasicMaterial).opacity = clampedOpacity;
-    }
-  }
-
-  /**
-   * Get the current political overlay opacity
-   */
-  getPoliticalOpacity(): number {
-    return this.terrainUniforms?.politicalOpacity?.value ?? 0.65;
+  public startAnimationLoop(getCamera: () => { x: number; y: number; zoom: number }): void {
+    const animate = () => {
+      requestAnimationFrame(animate);
+      const cam = getCamera();
+      this.render(cam.x, cam.y, cam.zoom);
+    };
+    animate();
   }
 }

@@ -4,11 +4,17 @@ import App from './App.tsx'
 import './index.css' // Your Tailwind CSS entry point
 import './menu-ui/styles/globals.css' // Figma design system
 
+// --- VERSION TRACKING ---
+import { logVersion } from './version.js';
+
 // --- IMPORT YOUR GAME LOGIC ---
 // We add .js because that's what they compile to
 import { initializeFullGame } from './gameInit.js';
 import { LoadingScreen } from './loadingScreen.js';
 import { logger } from './utils/Logger.js';
+
+// Log version first for debugging
+logVersion();
 
 logger.info('main', '🚀 main.tsx starting execution');
 
