@@ -1,5 +1,6 @@
 // Terrain Fragment Shader
 // Implements texture splatting: terrain index -> atlas lookup -> colormap tint
+// Water pixels are discarded (transparent) to show water plane below
 
 uniform sampler2D terrainIndexTexture;  // terrain_indexed.png (0-255 index)
 uniform sampler2D atlasTexture;         // atlas0.png (4x4 grid of textures)
@@ -22,40 +23,47 @@ void main() {
     // Use .r channel, multiply by 255 to get actual index
     float terrainIndex = texture2D(terrainIndexTexture, vUv).r * 255.0;
 
-    // Step 2: Calculate which tile in the atlas grid
+    // Step 2: Discard water pixels (index 0 or very low values)
+    // This creates transparency where water should be, showing the blue plane below
+    if (terrainIndex < 1.0) {
+        discard;
+        return;
+    }
+
+    // Step 3: Calculate which tile in the atlas grid
     float col = mod(terrainIndex, TILES_PER_ROW);
     float row = floor(terrainIndex / TILES_PER_ROW);
 
-    // Step 3: Create tiled UV coordinates (repeat texture many times)
+    // Step 4: Create tiled UV coordinates (repeat texture many times)
     vec2 tiledUv = fract(vUv * TILING_FACTOR);
 
-    // Step 4: Map tiled UV to the specific atlas region
+    // Step 5: Map tiled UV to the specific atlas region
     vec2 atlasUv = vec2(
         (col + tiledUv.x) * TILE_SIZE,
         (row + tiledUv.y) * TILE_SIZE
     );
 
-    // Step 5: Sample the terrain texture from atlas
+    // Step 6: Sample the terrain texture from atlas
     vec4 diffuseColor = texture2D(atlasTexture, atlasUv);
 
-    // Step 6: Sample the global colormap (tint)
+    // Step 7: Sample the global colormap (tint)
     vec4 tintColor = texture2D(colormapTexture, vUv);
 
-    // Step 7: Blend diffuse and tint (multiply blend)
+    // Step 8: Blend diffuse and tint (multiply blend)
     vec3 baseColor = diffuseColor.rgb * tintColor.rgb;
 
-    // Step 8: Apply lighting using normal map
+    // Step 9: Apply lighting using normal map
     vec3 normalMapSample = texture2D(normalMapTexture, vUv).rgb;
     vec3 normal = normalize(normalMapSample * 2.0 - 1.0); // Convert from [0,1] to [-1,1]
 
     // Calculate diffuse lighting
     float diffuse = max(dot(normal, normalize(lightDirection)), 0.0);
 
-    // Combine ambient and diffuse
+    // Combine ambient and diffuse (CRITICAL: ambient prevents pitch black shadows)
     float lighting = ambientIntensity + diffuse * lightIntensity;
 
-    // Step 9: Apply lighting and brightness boost
-    vec3 finalColor = baseColor * lighting * 1.5;
+    // Step 10: Apply lighting (ambient ensures nothing is ever pitch black)
+    vec3 finalColor = baseColor * lighting;
 
     gl_FragColor = vec4(finalColor, 1.0);
 }

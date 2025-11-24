@@ -92,13 +92,13 @@ export class ThreeJSMapRenderer {
       waterNormal1,
       waterNormal2,
     ] = await Promise.all([
-      this.loadTexture(textureLoader, '/terrain_indexed.png', THREE.NearestFilter, THREE.NearestFilter),
-      this.loadTexture(textureLoader, '/atlas0.png', THREE.LinearFilter, THREE.LinearFilter),
-      this.loadTexture(textureLoader, '/colormap_land.png', THREE.LinearFilter, THREE.LinearFilter),
-      this.loadTexture(textureLoader, '/heightmap.png', THREE.LinearFilter, THREE.LinearFilter),
-      this.loadTexture(textureLoader, '/atlas_normal0.png', THREE.LinearFilter, THREE.LinearFilter),
-      this.loadTexture(textureLoader, '/colormap_water_1.png', THREE.LinearFilter, THREE.LinearFilter),
-      this.loadTexture(textureLoader, '/colormap_water_2.png', THREE.LinearFilter, THREE.LinearFilter),
+      this.loadTexture(textureLoader, '/terrain_indexed.png', THREE.NearestFilter, THREE.NearestFilter, false),
+      this.loadTexture(textureLoader, '/atlas0.png', THREE.LinearFilter, THREE.LinearFilter, true),
+      this.loadTexture(textureLoader, '/colormap_land.png', THREE.LinearFilter, THREE.LinearFilter, false),
+      this.loadTexture(textureLoader, '/heightmap.png', THREE.LinearFilter, THREE.LinearFilter, false),
+      this.loadTexture(textureLoader, '/atlas_normal0.png', THREE.LinearFilter, THREE.LinearFilter, false),
+      this.loadTexture(textureLoader, '/colormap_water_1.png', THREE.LinearFilter, THREE.LinearFilter, true),
+      this.loadTexture(textureLoader, '/colormap_water_2.png', THREE.LinearFilter, THREE.LinearFilter, true),
     ]);
 
     console.log('All textures loaded');
@@ -122,7 +122,8 @@ export class ThreeJSMapRenderer {
     loader: THREE.TextureLoader,
     url: string,
     minFilter: THREE.TextureFilter,
-    magFilter: THREE.TextureFilter
+    magFilter: THREE.TextureFilter,
+    repeat: boolean = true
   ): Promise<THREE.Texture> {
     return new Promise((resolve, reject) => {
       loader.load(
@@ -130,8 +131,14 @@ export class ThreeJSMapRenderer {
         (texture) => {
           texture.minFilter = minFilter;
           texture.magFilter = magFilter;
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
+          // RepeatWrapping prevents stretching artifacts at edges
+          if (repeat) {
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+          } else {
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+          }
           resolve(texture);
         },
         undefined,
@@ -164,8 +171,8 @@ export class ThreeJSMapRenderer {
       normalMapTexture: { value: normalMapTexture },
       heightScale: { value: 10.0 }, // Adjust for desired terrain height
       lightDirection: { value: new THREE.Vector3(-0.6, -0.6, 0.8).normalize() },
-      lightIntensity: { value: 0.85 },
-      ambientIntensity: { value: 0.35 },
+      lightIntensity: { value: 0.5 },   // Reduced to prevent over-brightening
+      ambientIntensity: { value: 0.6 }, // INCREASED: Prevents pitch-black shadows
     };
 
     const material = new THREE.ShaderMaterial({
@@ -173,6 +180,9 @@ export class ThreeJSMapRenderer {
       vertexShader: terrainVertexShader,
       fragmentShader: terrainFragmentShader,
       side: THREE.FrontSide,
+      transparent: true,      // CRITICAL: Enable transparency for water cutouts
+      depthWrite: true,
+      depthTest: true,
     });
 
     this.terrainMesh = new THREE.Mesh(geometry, material);
@@ -183,16 +193,12 @@ export class ThreeJSMapRenderer {
   }
 
   private async createWaterMesh(waterNormal1: THREE.Texture, waterNormal2: THREE.Texture): Promise<void> {
-    // Water plane sits below terrain
+    // Water plane sits below terrain (simple solid blue for now - no waves to reduce lag)
     const geometry = new THREE.PlaneGeometry(this.mapWidth, this.mapHeight);
 
-    // Use two different water normal maps for realistic wave animation
+    // Simple solid blue water (animated waves disabled to reduce lag)
     this.waterUniforms = {
-      waterNormalMap1: { value: waterNormal1 },
-      waterNormalMap2: { value: waterNormal2 },
-      time: { value: 0.0 },
-      waterColor: { value: new THREE.Color(0x1e4d8b) }, // Ocean blue
-      lightDirection: { value: new THREE.Vector3(-0.6, -0.6, 0.8).normalize() },
+      waterColor: { value: new THREE.Color(0x2a4d6e) }, // HOI4-style ocean blue
     };
 
     const material = new THREE.ShaderMaterial({
@@ -203,10 +209,10 @@ export class ThreeJSMapRenderer {
     });
 
     this.waterMesh = new THREE.Mesh(geometry, material);
-    this.waterMesh.position.set(0, 0, -1); // Below terrain
+    this.waterMesh.position.set(0, 0, -1); // Below terrain (z = -1)
     this.scene.add(this.waterMesh);
 
-    console.log('Water mesh created');
+    console.log('Water mesh created (simple blue)');
   }
 
   updateCamera(camera: Camera): void {
@@ -230,11 +236,6 @@ export class ThreeJSMapRenderer {
   render(camera: Camera): void {
     // Update camera
     this.updateCamera(camera);
-
-    // Update water animation time
-    if (this.waterUniforms) {
-      this.waterUniforms.time.value = (Date.now() - this.startTime) / 1000.0;
-    }
 
     // Render scene
     this.renderer.render(this.scene, this.camera);
