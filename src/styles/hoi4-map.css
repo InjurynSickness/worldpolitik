@@ -1,8 +1,8 @@
 /**
- * HOI4-Style Map CSS
+ * HOI4-Style Map CSS - De-Dithered Implementation
  *
- * Implements the HOI4 rendering pipeline using CSS blend modes.
- * This achieves the authentic strategy game aesthetics without complex Canvas operations.
+ * Implements Gemini's rendering pipeline using CSS blend modes.
+ * Eliminates the checkerboard grid pattern through Python preprocessing.
  */
 
 .hoi4-map-container {
@@ -10,7 +10,7 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #000000;
+  background-color: #0b1021; /* Deep sea blue fallback */
   user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -29,74 +29,90 @@
 }
 
 /**
- * Layer 1: Base Texture
+ * Layer 1: Water Colormap
  *
- * The foundation layer containing terrain textures and water colormap.
- * This is composited from the Python script output.
+ * Ocean base layer from colormap_water.png.
+ * Shows through transparent areas in terrain layer.
  *
  * z-index: 1 (bottom)
- * blend mode: normal (source-over)
+ * blend mode: normal
  */
-.hoi4-map-base {
+.hoi4-map-water {
   z-index: 1;
   mix-blend-mode: normal;
   opacity: 1.0;
 }
 
 /**
- * Layer 2: Hillshade/Shadows
+ * Layer 2: Terrain Texture
  *
- * Grayscale depth layer generated from world_normal.bmp.
- * Uses overlay blend mode to "bake" shadows into the terrain,
- * creating the 3D depth effect without obscuring colors.
+ * De-dithered land texture with transparent oceans.
+ * Median filter removes checkerboard pattern from HOI4's indexed bitmap.
+ * Subtle noise overlay adds ground texture feel.
  *
  * z-index: 2
- * blend mode: overlay (CRITICAL for depth perception)
+ * blend mode: normal
+ */
+.hoi4-map-terrain {
+  z-index: 2;
+  mix-blend-mode: normal;
+  opacity: 1.0;
+}
+
+/**
+ * Layer 3: High-Contrast Lighting
+ *
+ * Grayscale shadows generated from world_normal.bmp.
+ * Uses Gemini's contrast stretching for dramatic depth.
+ * Overlay blend mode makes mountains pop without obscuring colors.
+ *
+ * z-index: 3
+ * blend mode: overlay (ESSENTIAL for 3D depth)
  *
  * Overlay blend mode:
- * - Dark areas in hillshade create shadows
- * - Light areas enhance highlights
- * - Mid-gray (128,128,128) is neutral (no effect)
+ * - Dark values (<100) create deep shadows
+ * - Light values (>150) create bright highlights
+ * - Mid-gray (128) is neutral (no lighting effect)
  */
-.hoi4-map-shadows {
-  z-index: 2;
+.hoi4-map-lighting {
+  z-index: 3;
   mix-blend-mode: overlay;
   opacity: 1.0; /* Adjust to control depth intensity */
 }
 
 /**
- * Layer 3: Political Overlay
+ * Layer 4: Political Overlay
  *
  * Canvas layer showing country colors.
- * Uses multiply blend mode to allow terrain and shadows to show through,
- * creating the signature HOI4 "painted nations" look.
+ * Multiply blend allows terrain texture and lighting to show through.
+ * Creates the signature HOI4 "painted nations" aesthetic.
  *
- * z-index: 3
- * blend mode: multiply (CRITICAL for terrain visibility)
+ * z-index: 4
+ * blend mode: multiply (ESSENTIAL for texture visibility)
  *
  * Multiply blend mode:
- * - Darker base colors darken the political colors
- * - Creates natural-looking color variation based on terrain
+ * - Darker terrain darkens political colors
+ * - Creates natural color variation based on geography
  * - Mountains appear darker, plains lighter
  */
 .hoi4-map-political {
-  z-index: 3;
+  z-index: 4;
   mix-blend-mode: multiply;
-  opacity: 0.6; /* Default HOI4-style transparency */
+  opacity: 0.65; /* Default HOI4-style transparency */
   pointer-events: auto; /* Allow clicks for province selection */
 }
 
 /**
- * Layer 4: Borders
+ * Layer 5: Borders
  *
  * Country and province borders overlay.
  * Always rendered on top with full opacity.
  *
- * z-index: 4 (top)
+ * z-index: 5 (top)
  * blend mode: normal
  */
 .hoi4-map-borders {
-  z-index: 4;
+  z-index: 5;
   mix-blend-mode: normal;
   opacity: 1.0;
 }
@@ -105,10 +121,11 @@
  * Anti-aliasing and Quality Settings
  *
  * For crisp borders and text on strategy maps, we use crisp-edges.
- * For smooth terrain textures, we can selectively use auto smoothing.
+ * For smooth terrain textures, we use auto smoothing.
  */
-.hoi4-map-base,
-.hoi4-map-shadows {
+.hoi4-map-water,
+.hoi4-map-terrain,
+.hoi4-map-lighting {
   /* Smooth terrain for natural look */
   image-rendering: auto;
 }
@@ -133,8 +150,9 @@
  * Disable pointer events on decorative layers
  * Only political layer needs to capture clicks
  */
-.hoi4-map-base,
-.hoi4-map-shadows,
+.hoi4-map-water,
+.hoi4-map-terrain,
+.hoi4-map-lighting,
 .hoi4-map-borders {
   pointer-events: none;
 }
@@ -151,7 +169,7 @@
  * Loading state
  */
 .hoi4-map-container.loading::after {
-  content: 'Loading map assets...';
+  content: 'Loading de-dithered map assets...';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -166,18 +184,22 @@
  * Debug mode styles (optional)
  * Add .debug class to container to visualize layers
  */
-.hoi4-map-container.debug .hoi4-map-base {
-  outline: 2px solid red;
-}
-
-.hoi4-map-container.debug .hoi4-map-shadows {
-  outline: 2px solid green;
-}
-
-.hoi4-map-container.debug .hoi4-map-political {
+.hoi4-map-container.debug .hoi4-map-water {
   outline: 2px solid blue;
 }
 
-.hoi4-map-container.debug .hoi4-map-borders {
+.hoi4-map-container.debug .hoi4-map-terrain {
+  outline: 2px solid green;
+}
+
+.hoi4-map-container.debug .hoi4-map-lighting {
   outline: 2px solid yellow;
+}
+
+.hoi4-map-container.debug .hoi4-map-political {
+  outline: 2px solid red;
+}
+
+.hoi4-map-container.debug .hoi4-map-borders {
+  outline: 2px solid white;
 }

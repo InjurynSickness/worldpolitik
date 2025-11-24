@@ -1,14 +1,15 @@
 /**
  * HOI4-Style Map Renderer Component
  *
- * Implements the Hearts of Iron 4 visual style using CSS blend modes instead of Canvas operations.
- * This provides better performance and more authentic HOI4 aesthetics.
+ * Implements the Hearts of Iron 4 visual style using CSS blend modes.
+ * Uses Gemini's de-dithering approach to eliminate checkerboard grid patterns.
  *
  * Layer Stack (bottom to top):
- * 1. Base Texture (map_base.png) - Terrain textures + water colormap
- * 2. Hillshade (map_shadows.png) - Depth/shadow layer with overlay blend
- * 3. Political Overlay (canvas) - Country colors with multiply blend
- * 4. Borders (SVG/PNG) - Country/province borders
+ * 1. Water (final_water.png) - Ocean colormap base layer
+ * 2. Terrain (final_terrain.png) - De-dithered land texture with transparent water
+ * 3. Lighting (final_lighting.png) - High-contrast shadows with overlay blend
+ * 4. Political Overlay (canvas) - Country colors with multiply blend
+ * 5. Borders (SVG/PNG) - Country/province borders
  */
 
 import React, { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
@@ -185,11 +186,11 @@ export const HOI4MapRenderer = forwardRef<HOI4MapRendererHandle, HOI4MapRenderer
         cursor: isDragging ? 'grabbing' : 'grab'
       }}
     >
-      {/* Layer 1: Base Texture (terrain + water) */}
+      {/* Layer 1: Water Colormap (Bottom) */}
       <img
-        src="/map_base.png"
-        alt="Base Map"
-        className="hoi4-map-layer hoi4-map-base"
+        src="/final_water.png"
+        alt="Water"
+        className="hoi4-map-layer hoi4-map-water"
         draggable={false}
         style={{
           transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
@@ -197,11 +198,23 @@ export const HOI4MapRenderer = forwardRef<HOI4MapRendererHandle, HOI4MapRenderer
         }}
       />
 
-      {/* Layer 2: Hillshade/Shadows (depth layer) */}
+      {/* Layer 2: De-Dithered Terrain (Transparent water holes) */}
       <img
-        src="/map_shadows.png"
-        alt="Shadows"
-        className="hoi4-map-layer hoi4-map-shadows"
+        src="/final_terrain.png"
+        alt="Terrain"
+        className="hoi4-map-layer hoi4-map-terrain"
+        draggable={false}
+        style={{
+          transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
+          transformOrigin: '0 0'
+        }}
+      />
+
+      {/* Layer 3: High-Contrast Lighting (Overlay blend for depth) */}
+      <img
+        src="/final_lighting.png"
+        alt="Lighting"
+        className="hoi4-map-layer hoi4-map-lighting"
         draggable={false}
         style={{
           transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})`,
@@ -211,7 +224,7 @@ export const HOI4MapRenderer = forwardRef<HOI4MapRendererHandle, HOI4MapRenderer
         }}
       />
 
-      {/* Layer 3: Political Overlay (country colors) */}
+      {/* Layer 4: Political Overlay (Country colors with multiply blend) */}
       <canvas
         ref={politicalCanvasRef}
         className="hoi4-map-layer hoi4-map-political"
@@ -223,7 +236,7 @@ export const HOI4MapRenderer = forwardRef<HOI4MapRendererHandle, HOI4MapRenderer
         }}
       />
 
-      {/* Layer 4: Borders (optional) */}
+      {/* Layer 5: Borders (Top) */}
       {showBorders && (
         <img
           src="/border_country_0.png"

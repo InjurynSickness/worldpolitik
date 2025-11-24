@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 """
-HOI4-Style Map Asset Processor
+HOI4-Style Map Asset Processor - Full De-Dithering Implementation
 
-This script processes raw HOI4 map files to create web-optimized assets:
-1. Fix "black void" artifacts in terrain.bmp (Amazon/DRC regions)
-2. Generate hillshade/shadow layer from world_normal.bmp
-3. Create composite base texture (terrain + water)
+This script processes raw HOI4 map files using Gemini's approach to eliminate
+the checkerboard dithering pattern and create authentic HOI4-style visuals.
+
+Key Processing Steps:
+1. De-dither terrain.bmp using median filter to remove checkerboard pattern
+2. Add subtle texture noise for ground feel
+3. Extract water transparency mask
+4. Generate high-contrast lighting from world_normal.bmp
+5. Output separate layers for CSS composition
+
+Output Files:
+- final_terrain.png: De-dithered land texture with transparent oceans
+- final_water.png: Water colormap resized to match map
+- final_lighting.png: High-contrast grayscale shadows for overlay blend
 
 Usage:
     python scripts/process_map.py
@@ -30,12 +40,14 @@ WATER_COLORMAP = PUBLIC_DIR / "colormap_water.png"
 PROVINCES_BMP = ASSETS_SOURCE / "provinces.bmp"
 
 # Output files
-MAP_BASE_PNG = PUBLIC_DIR / "map_base.png"
-MAP_SHADOWS_PNG = PUBLIC_DIR / "map_shadows.png"
-TERRAIN_FIXED_PNG = PUBLIC_DIR / "terrain_fixed.png"
+FINAL_TERRAIN_PNG = PUBLIC_DIR / "final_terrain.png"
+FINAL_WATER_PNG = PUBLIC_DIR / "final_water.png"
+FINAL_LIGHTING_PNG = PUBLIC_DIR / "final_lighting.png"
 
-# Colors
-JUNGLE_GREEN = (59, 89, 63)  # Fallback color for void pixels
+# Processing parameters
+MEDIAN_FILTER_SIZE = 3  # For de-dithering checkerboard pattern
+NOISE_INTENSITY = 12    # Texture noise standard deviation (5-10% of 255)
+JUNGLE_GREEN = (59, 89, 63)  # Fallback for void pixels
 
 
 def log_info(message: str):
@@ -53,219 +65,220 @@ def log_error(message: str):
     print(f"❌ {message}")
 
 
-def fix_terrain_voids(terrain_path: Path, provinces_path: Path, output_path: Path) -> Image.Image:
+def create_water_mask(provinces_path: Path, terrain_shape: tuple) -> np.ndarray:
     """
-    Fix black void artifacts in terrain.bmp.
+    Create boolean mask identifying water pixels.
 
-    The issue: Indexed BMP files have transparent/void pixels that render as black
-    in jungle regions (Amazon, DRC, etc.)
+    Args:
+        provinces_path: Path to provinces.bmp
+        terrain_shape: Shape to match (height, width)
 
-    Solution:
-    1. Convert from Indexed mode to RGB
-    2. Detect void pixels (pure black or transparent)
-    3. Fill with jungle green or sample from neighboring valid pixels
+    Returns:
+        Boolean array where True = water, False = land
+    """
+    log_info("Creating water mask from provinces.bmp...")
+
+    provinces = Image.open(provinces_path).convert('RGB')
+
+    # Resize if needed
+    if provinces.size != (terrain_shape[1], terrain_shape[0]):
+        log_info(f"Resizing provinces from {provinces.size} to ({terrain_shape[1]}, {terrain_shape[0]})...")
+        provinces = provinces.resize((terrain_shape[1], terrain_shape[0]), Image.Resampling.NEAREST)
+
+    provinces_arr = np.array(provinces)
+
+    # Water pixels are very dark in provinces.bmp (R,G,B < 10)
+    is_water = (provinces_arr[:, :, 0] < 10) & \
+               (provinces_arr[:, :, 1] < 10) & \
+               (provinces_arr[:, :, 2] < 10)
+
+    water_count = np.sum(is_water)
+    total_pixels = is_water.size
+    water_percent = (water_count / total_pixels) * 100
+
+    log_success(f"Water mask created: {water_count:,} pixels ({water_percent:.1f}%)")
+
+    return is_water
+
+
+def process_terrain(terrain_path: Path, water_mask: np.ndarray, output_path: Path) -> Image.Image:
+    """
+    Process terrain with de-dithering, void fixing, and texture noise.
+
+    HOI4 uses checkerboard dithering to blend terrain types. This creates an ugly
+    grid pattern when viewed raw. We fix this by:
+    1. Converting indexed to RGB
+    2. Applying median filter to smooth checkerboard pixels
+    3. Adding subtle noise for ground texture feel
+    4. Fixing void pixels (Amazon black blobs)
+    5. Applying transparency mask for water
 
     Args:
         terrain_path: Path to terrain.bmp
-        provinces_path: Path to provinces.bmp (for land/water detection)
-        output_path: Where to save the fixed terrain
+        water_mask: Boolean array (True = water)
+        output_path: Where to save processed terrain
 
     Returns:
-        Fixed terrain image
+        Processed terrain image (RGBA with transparent water)
     """
-    log_info("Loading terrain.bmp and provinces.bmp...")
-
-    # Load terrain (may be indexed)
+    log_info("Loading terrain.bmp...")
     terrain = Image.open(terrain_path)
-    provinces = Image.open(provinces_path)
 
-    # Convert to RGB if needed
+    # Convert indexed to RGB
     if terrain.mode != 'RGB':
         log_info(f"Converting terrain from {terrain.mode} to RGB...")
         terrain = terrain.convert('RGB')
 
-    if provinces.mode != 'RGB':
-        provinces = provinces.convert('RGB')
+    # CRITICAL: De-dithering step - removes the checkerboard grid pattern
+    log_info(f"Applying median filter (size={MEDIAN_FILTER_SIZE}) to remove dithering...")
+    terrain = terrain.filter(ImageFilter.MedianFilter(size=MEDIAN_FILTER_SIZE))
+    log_success("Checkerboard dithering removed")
 
-    # Convert to numpy arrays for processing
-    terrain_arr = np.array(terrain)
-    provinces_arr = np.array(provinces)
+    # Convert to numpy for pixel operations
+    terrain_arr = np.array(terrain, dtype=np.float32)  # Float for noise addition
 
-    log_info("Detecting and fixing void pixels...")
+    # Fix void pixels (pure black on land areas)
+    is_void_on_land = (terrain_arr[:, :, 0] == 0) & \
+                      (terrain_arr[:, :, 1] == 0) & \
+                      (terrain_arr[:, :, 2] == 0) & \
+                      (~water_mask)
 
-    # Detect void pixels:
-    # 1. Pure black (0,0,0) on land areas
-    # 2. Very dark pixels on land areas (might be corrupted)
-
-    # Water is typically very dark in provinces.bmp (R,G,B < 10)
-    is_water = (provinces_arr[:, :, 0] < 10) & \
-               (provinces_arr[:, :, 1] < 10) & \
-               (provinces_arr[:, :, 2] < 10)
-
-    # Void pixels are pure black on LAND areas
-    is_void = (terrain_arr[:, :, 0] == 0) & \
-              (terrain_arr[:, :, 1] == 0) & \
-              (terrain_arr[:, :, 2] == 0) & \
-              (~is_water)
-
-    void_count = np.sum(is_void)
-    log_info(f"Found {void_count:,} void pixels to fix")
-
+    void_count = np.sum(is_void_on_land)
     if void_count > 0:
-        # Fix void pixels with jungle green
-        terrain_arr[is_void] = JUNGLE_GREEN
-        log_success(f"Fixed {void_count:,} void pixels with jungle green")
+        log_info(f"Fixing {void_count:,} void pixels (Amazon/DRC regions)...")
+        terrain_arr[is_void_on_land] = JUNGLE_GREEN
+        log_success(f"Void pixels fixed with jungle green")
 
-    # Create fixed image
-    terrain_fixed = Image.fromarray(terrain_arr, 'RGB')
+    # Add texture noise to land pixels only (makes it look like ground, not MS Paint)
+    log_info(f"Adding texture noise (intensity={NOISE_INTENSITY}) to land pixels...")
 
-    # Save fixed terrain
-    log_info(f"Saving fixed terrain to {output_path}...")
-    terrain_fixed.save(output_path, 'PNG', optimize=True)
-    log_success(f"Fixed terrain saved: {output_path}")
+    # Generate monochromatic noise
+    np.random.seed(42)  # Reproducible noise pattern
+    noise = np.random.normal(0, NOISE_INTENSITY, terrain_arr.shape[:2])
 
-    return terrain_fixed
+    # Apply noise only to land pixels
+    land_mask = ~water_mask
+    for channel in range(3):
+        terrain_arr[:, :, channel][land_mask] += noise[land_mask]
+
+    # Clip to valid range
+    terrain_arr = np.clip(terrain_arr, 0, 255).astype(np.uint8)
+    log_success("Texture noise applied to land pixels")
+
+    # Create RGBA image with transparent water
+    log_info("Creating transparency mask for water...")
+    terrain_rgba = np.zeros((*terrain_arr.shape[:2], 4), dtype=np.uint8)
+    terrain_rgba[:, :, :3] = terrain_arr
+    terrain_rgba[:, :, 3] = 255  # Full opacity by default
+    terrain_rgba[water_mask, 3] = 0  # Transparent water
+
+    terrain_final = Image.fromarray(terrain_rgba, 'RGBA')
+
+    # Save
+    log_info(f"Saving final terrain to {output_path}...")
+    terrain_final.save(output_path, 'PNG', optimize=True)
+    log_success(f"Final terrain saved: {output_path}")
+
+    return terrain_final
 
 
-def generate_hillshade(normal_path: Path, output_path: Path) -> Image.Image:
+def process_water_colormap(water_colormap_path: Path, target_size: tuple, output_path: Path) -> Image.Image:
     """
-    Generate hillshade/shadow layer from world_normal.bmp.
+    Process water colormap to match terrain dimensions.
 
-    Normal maps can't be used directly with CSS blend modes.
-    We need to convert RGB normal data to a grayscale heightmap/shadow map.
+    Args:
+        water_colormap_path: Path to colormap_water.png
+        target_size: (width, height) to match
+        output_path: Where to save processed water
 
-    Process:
-    1. Convert normal map (RGB) to grayscale
-    2. Apply high-contrast enhancement
-    3. Apply emboss filter to simulate lighting from top-left
-    4. Adjust levels for optimal depth perception
+    Returns:
+        Processed water colormap image
+    """
+    log_info("Processing water colormap...")
+
+    if not water_colormap_path.exists():
+        log_error(f"Water colormap not found: {water_colormap_path}")
+        log_info("Creating solid HOI4 ocean blue as fallback...")
+        water = Image.new('RGB', target_size, (41, 52, 73))
+    else:
+        water = Image.open(water_colormap_path).convert('RGB')
+
+        if water.size != target_size:
+            log_info(f"Resizing water from {water.size} to {target_size}...")
+            water = water.resize(target_size, Image.Resampling.LANCZOS)
+
+    # Save
+    log_info(f"Saving final water to {output_path}...")
+    water.save(output_path, 'PNG', optimize=True)
+    log_success(f"Final water saved: {output_path}")
+
+    return water
+
+
+def generate_lighting(normal_path: Path, output_path: Path) -> Image.Image:
+    """
+    Generate high-contrast lighting layer from world_normal.bmp.
+
+    Gemini's approach: Manual histogram stretching for dramatic shadows.
+    - Values < 100: Darken significantly (deep shadows)
+    - Values > 150: Brighten significantly (strong highlights)
+    - Values 100-150: Neutral gray (no lighting effect)
 
     Args:
         normal_path: Path to world_normal.bmp
-        output_path: Where to save the hillshade
+        output_path: Where to save lighting
 
     Returns:
-        Hillshade image
+        High-contrast grayscale lighting image
     """
     log_info("Loading world_normal.bmp...")
     normal = Image.open(normal_path)
 
-    # Convert to RGB if needed
     if normal.mode != 'RGB':
         normal = normal.convert('RGB')
 
     log_info("Converting normal map to grayscale...")
-    # Convert to grayscale (this gives us a basic height representation)
     grayscale = normal.convert('L')
+    lighting_arr = np.array(grayscale, dtype=np.float32)
 
-    log_info("Applying high-contrast filter...")
-    # Enhance contrast to make terrain features more pronounced
-    # Use ImageOps.autocontrast for automatic level adjustment
-    contrast_enhanced = ImageOps.autocontrast(grayscale, cutoff=2)
+    log_info("Applying high-contrast stretching (Gemini's method)...")
 
-    log_info("Applying emboss filter for directional lighting...")
-    # Apply emboss to simulate light from top-left (standard for maps)
-    # This creates the "shadow" effect that gives depth
-    embossed = contrast_enhanced.filter(ImageFilter.EMBOSS)
+    # Create masks for different value ranges
+    mask_dark = lighting_arr < 100
+    mask_light = lighting_arr > 150
+    mask_mid = (lighting_arr >= 100) & (lighting_arr <= 150)
 
-    log_info("Adjusting levels for optimal depth perception...")
-    # The emboss filter produces mid-gray values
-    # We need to adjust to use full dynamic range
-    hillshade_arr = np.array(embossed)
+    # Apply contrast stretching
+    # Shadows: Map [0-100] to [0-50] for deeper shadows
+    lighting_arr[mask_dark] = (lighting_arr[mask_dark] / 100) * 50
 
-    # Normalize to 0-255 range for maximum contrast
-    min_val = hillshade_arr.min()
-    max_val = hillshade_arr.max()
+    # Highlights: Map [150-255] to [150-255] with enhanced contrast
+    lighting_arr[mask_light] = 150 + ((lighting_arr[mask_light] - 150) / 105) * 105
 
-    if max_val > min_val:
-        hillshade_arr = ((hillshade_arr - min_val) / (max_val - min_val) * 255).astype(np.uint8)
+    # Midtones: Flatten to neutral gray (128 = no effect with overlay blend)
+    lighting_arr[mask_mid] = 128
 
-    # Apply slight gamma correction to make shadows more visible
-    # Gamma < 1 brightens, Gamma > 1 darkens
-    gamma = 1.2
-    hillshade_arr = (255 * (hillshade_arr / 255) ** gamma).astype(np.uint8)
+    lighting_arr = lighting_arr.astype(np.uint8)
+    lighting = Image.fromarray(lighting_arr, 'L')
 
-    hillshade = Image.fromarray(hillshade_arr, 'L')
+    log_success("High-contrast lighting generated")
 
-    # Save hillshade
-    log_info(f"Saving hillshade to {output_path}...")
-    hillshade.save(output_path, 'PNG', optimize=True)
-    log_success(f"Hillshade saved: {output_path}")
+    # Save
+    log_info(f"Saving final lighting to {output_path}...")
+    lighting.save(output_path, 'PNG', optimize=True)
+    log_success(f"Final lighting saved: {output_path}")
 
-    return hillshade
-
-
-def create_base_texture(terrain_fixed: Image.Image, water_colormap_path: Path,
-                       provinces_path: Path, output_path: Path) -> Image.Image:
-    """
-    Create base texture by compositing terrain over water colormap.
-
-    Process:
-    1. Use provinces.bmp to identify water areas
-    2. Place water colormap as base
-    3. Composite terrain over water (terrain has transparency on water)
-
-    Args:
-        terrain_fixed: Fixed terrain image
-        water_colormap_path: Path to water colormap
-        provinces_path: Path to provinces.bmp
-        output_path: Where to save the base texture
-
-    Returns:
-        Base texture image
-    """
-    log_info("Creating base texture (terrain + water)...")
-
-    # Load water colormap
-    if not water_colormap_path.exists():
-        log_error(f"Water colormap not found: {water_colormap_path}")
-        log_info("Using solid water color as fallback...")
-        water = Image.new('RGB', terrain_fixed.size, (41, 52, 73))  # HOI4 ocean blue
-    else:
-        water = Image.open(water_colormap_path)
-        if water.size != terrain_fixed.size:
-            log_info(f"Resizing water colormap from {water.size} to {terrain_fixed.size}...")
-            water = water.resize(terrain_fixed.size, Image.Resampling.LANCZOS)
-        water = water.convert('RGB')
-
-    # Load provinces for water detection
-    provinces = Image.open(provinces_path).convert('RGB')
-    provinces_arr = np.array(provinces)
-
-    # Create alpha mask for terrain (transparent on water)
-    is_water = (provinces_arr[:, :, 0] < 10) & \
-               (provinces_arr[:, :, 1] < 10) & \
-               (provinces_arr[:, :, 2] < 10)
-
-    # Create RGBA terrain with alpha channel
-    terrain_arr = np.array(terrain_fixed)
-    terrain_rgba = np.zeros((*terrain_arr.shape[:2], 4), dtype=np.uint8)
-    terrain_rgba[:, :, :3] = terrain_arr
-    terrain_rgba[:, :, 3] = 255  # Start with full opacity
-    terrain_rgba[is_water, 3] = 0  # Make water transparent
-
-    terrain_with_alpha = Image.fromarray(terrain_rgba, 'RGBA')
-
-    # Composite terrain over water
-    base = water.copy()
-    base.paste(terrain_with_alpha, (0, 0), terrain_with_alpha)
-
-    # Save base texture
-    log_info(f"Saving base texture to {output_path}...")
-    base.save(output_path, 'PNG', optimize=True)
-    log_success(f"Base texture saved: {output_path}")
-
-    return base
+    return lighting
 
 
 def main():
     """Main processing pipeline."""
-    print("=" * 60)
-    print("HOI4-Style Map Asset Processor")
-    print("=" * 60)
+    print("=" * 70)
+    print("HOI4-Style Map Asset Processor - De-Dithering Implementation")
+    print("=" * 70)
     print()
 
-    # Check for required dependencies
+    # Check dependencies
     try:
         import PIL
         import numpy
@@ -274,7 +287,7 @@ def main():
         log_info("Install with: pip install Pillow numpy")
         sys.exit(1)
 
-    # Verify input files exist
+    # Verify input files
     required_files = [TERRAIN_BMP, NORMAL_BMP, PROVINCES_BMP]
     missing = [f for f in required_files if not f.exists()]
 
@@ -284,41 +297,55 @@ def main():
             print(f"  - {f}")
         sys.exit(1)
 
-    # Create output directory if needed
+    # Create output directory
     PUBLIC_DIR.mkdir(exist_ok=True)
 
     try:
-        # Step 1: Fix terrain voids
-        print("\n" + "─" * 60)
-        print("STEP 1: Fixing Terrain Voids")
-        print("─" * 60)
-        terrain_fixed = fix_terrain_voids(TERRAIN_BMP, PROVINCES_BMP, TERRAIN_FIXED_PNG)
+        # Get terrain dimensions
+        terrain_temp = Image.open(TERRAIN_BMP)
+        map_size = (terrain_temp.width, terrain_temp.height)
+        terrain_temp.close()
 
-        # Step 2: Generate hillshade
-        print("\n" + "─" * 60)
-        print("STEP 2: Generating Hillshade Layer")
-        print("─" * 60)
-        hillshade = generate_hillshade(NORMAL_BMP, MAP_SHADOWS_PNG)
+        log_info(f"Map dimensions: {map_size[0]} x {map_size[1]}")
 
-        # Step 3: Create base texture
-        print("\n" + "─" * 60)
-        print("STEP 3: Creating Base Texture")
-        print("─" * 60)
-        base = create_base_texture(terrain_fixed, WATER_COLORMAP, PROVINCES_BMP, MAP_BASE_PNG)
+        # Step 1: Create water mask
+        print("\n" + "─" * 70)
+        print("STEP 1: Creating Water Mask")
+        print("─" * 70)
+        water_mask = create_water_mask(PROVINCES_BMP, (map_size[1], map_size[0]))
+
+        # Step 2: Process terrain (de-dither, noise, transparency)
+        print("\n" + "─" * 70)
+        print("STEP 2: Processing Terrain (De-Dithering + Noise + Transparency)")
+        print("─" * 70)
+        terrain_final = process_terrain(TERRAIN_BMP, water_mask, FINAL_TERRAIN_PNG)
+
+        # Step 3: Process water colormap
+        print("\n" + "─" * 70)
+        print("STEP 3: Processing Water Colormap")
+        print("─" * 70)
+        water_final = process_water_colormap(WATER_COLORMAP, map_size, FINAL_WATER_PNG)
+
+        # Step 4: Generate high-contrast lighting
+        print("\n" + "─" * 70)
+        print("STEP 4: Generating High-Contrast Lighting")
+        print("─" * 70)
+        lighting_final = generate_lighting(NORMAL_BMP, FINAL_LIGHTING_PNG)
 
         # Success summary
-        print("\n" + "=" * 60)
+        print("\n" + "=" * 70)
         log_success("All assets processed successfully!")
-        print("=" * 60)
+        print("=" * 70)
         print("\nGenerated files:")
-        print(f"  1. {TERRAIN_FIXED_PNG.name} - Fixed terrain (void artifacts removed)")
-        print(f"  2. {MAP_SHADOWS_PNG.name} - Hillshade layer (for CSS overlay blend)")
-        print(f"  3. {MAP_BASE_PNG.name} - Base texture (terrain + water composite)")
-        print("\nNext steps:")
-        print("  - Update frontend code to use CSS blend modes")
-        print("  - Layer 1: map_base.png (z-index: 1)")
-        print("  - Layer 2: map_shadows.png (z-index: 2, mix-blend-mode: overlay)")
-        print("  - Layer 3: political overlay (z-index: 3, mix-blend-mode: multiply)")
+        print(f"  1. {FINAL_TERRAIN_PNG.name} - De-dithered terrain with transparent water")
+        print(f"  2. {FINAL_WATER_PNG.name} - Water colormap")
+        print(f"  3. {FINAL_LIGHTING_PNG.name} - High-contrast lighting for overlay")
+        print("\nVerification checklist:")
+        print("  ✓ Open final_terrain.png - oceans should be TRANSPARENT")
+        print("  ✓ Open final_lighting.png - should look like black/white relief map")
+        print("  ✓ Grid pattern should be GONE (de-dithered)")
+        print("\nNext step:")
+        print("  - Update frontend to use new 4-layer CSS stack")
         print()
 
     except Exception as e:
