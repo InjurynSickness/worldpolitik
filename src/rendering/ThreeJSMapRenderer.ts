@@ -170,9 +170,9 @@ export class ThreeJSMapRenderer {
       heightmapTexture: { value: heightmapTexture },
       normalMapTexture: { value: normalMapTexture },
       heightScale: { value: 10.0 }, // Adjust for desired terrain height
-      lightDirection: { value: new THREE.Vector3(-0.6, -0.6, 0.8).normalize() },
-      lightIntensity: { value: 0.5 },   // Reduced to prevent over-brightening
-      ambientIntensity: { value: 0.6 }, // INCREASED: Prevents pitch-black shadows
+      lightDirection: { value: new THREE.Vector3(-0.5, -0.3, 1.0).normalize() },
+      lightIntensity: { value: 0.35 },  // Subtle directional highlights
+      ambientIntensity: { value: 0.75 }, // High ambient prevents dark shadows (HOI4 style)
     };
 
     const material = new THREE.ShaderMaterial({
@@ -198,7 +198,7 @@ export class ThreeJSMapRenderer {
 
     // Simple solid blue water (animated waves disabled to reduce lag)
     this.waterUniforms = {
-      waterColor: { value: new THREE.Color(0x2a4d6e) }, // HOI4-style ocean blue
+      waterColor: { value: new THREE.Color(0x5a7d9a) }, // Lighter HOI4-style ocean blue
     };
 
     const material = new THREE.ShaderMaterial({

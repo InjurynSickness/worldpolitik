@@ -25,7 +25,8 @@ void main() {
 
     // Step 2: Discard water pixels (index 0 or very low values)
     // This creates transparency where water should be, showing the blue plane below
-    if (terrainIndex < 1.0) {
+    // Use 0.5 threshold to handle any texture filtering artifacts
+    if (terrainIndex < 0.5) {
         discard;
         return;
     }
@@ -49,8 +50,9 @@ void main() {
     // Step 7: Sample the global colormap (tint)
     vec4 tintColor = texture2D(colormapTexture, vUv);
 
-    // Step 8: Blend diffuse and tint (multiply blend)
-    vec3 baseColor = diffuseColor.rgb * tintColor.rgb;
+    // Step 8: Blend diffuse and tint (multiply blend with brightness boost)
+    // Multiply by 2.2 to compensate for double-darkening from two textures
+    vec3 baseColor = diffuseColor.rgb * tintColor.rgb * 2.2;
 
     // Step 9: Apply lighting using normal map
     vec3 normalMapSample = texture2D(normalMapTexture, vUv).rgb;
