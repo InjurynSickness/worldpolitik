@@ -668,7 +668,11 @@ export class ProvinceMap {
 
     private render(): void {
         if (!this.mapReady) return;
-        this.mapRenderer.render();
+        // OLD 2D RENDERER - DISABLED (now using Three.js WebGL renderer)
+        // this.mapRenderer.render();
+
+        // Three.js renders automatically via animation loop
+        // No manual render call needed here
     }
     
     private handleResize(): void {
@@ -690,6 +694,11 @@ export class ProvinceMap {
             this.canvasManager.waterTextureCtx
         );
         this.politicalMapReady = true;
+
+        // Update Three.js political texture
+        if (this.threeJSRenderer) {
+            this.threeJSRenderer.updatePoliticalTexture(this.canvasManager.politicalCanvas);
+        }
     }
 
     private buildBorderMap(): void {
@@ -848,7 +857,11 @@ export class ProvinceMap {
      * Set political colors opacity (0 = terrain only, 1 = full political colors)
      */
     public setPoliticalOpacity(opacity: number): void {
+        // Update both old renderer (for UI overlays) and Three.js renderer
         this.mapRenderer.setPoliticalOpacity(opacity);
+        if (this.threeJSRenderer) {
+            this.threeJSRenderer.setPoliticalOpacity(opacity);
+        }
         this.requestRender();
     }
 
@@ -856,6 +869,10 @@ export class ProvinceMap {
      * Get current political colors opacity
      */
     public getPoliticalOpacity(): number {
+        // Return from Three.js renderer if available
+        if (this.threeJSRenderer) {
+            return this.threeJSRenderer.getPoliticalOpacity();
+        }
         return this.mapRenderer.getPoliticalOpacity();
     }
 

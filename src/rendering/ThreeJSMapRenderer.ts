@@ -162,6 +162,13 @@ export class ThreeJSMapRenderer {
       1000
     );
 
+    // Create a blank political texture (will be updated later from canvas)
+    const politicalTexture = new THREE.Texture();
+    politicalTexture.minFilter = THREE.LinearFilter;
+    politicalTexture.magFilter = THREE.LinearFilter;
+    politicalTexture.wrapS = THREE.ClampToEdgeWrapping;
+    politicalTexture.wrapT = THREE.ClampToEdgeWrapping;
+
     // Create shader material uniforms
     this.terrainUniforms = {
       terrainIndexTexture: { value: terrainIndexTexture },
@@ -169,6 +176,8 @@ export class ThreeJSMapRenderer {
       colormapTexture: { value: colormapTexture },
       heightmapTexture: { value: heightmapTexture },
       normalMapTexture: { value: normalMapTexture },
+      politicalTexture: { value: politicalTexture },
+      politicalOpacity: { value: 0.65 }, // Default 65% political overlay
       heightScale: { value: 10.0 }, // Adjust for desired terrain height
       lightDirection: { value: new THREE.Vector3(-0.5, -0.3, 1.0).normalize() },
       lightIntensity: { value: 0.35 },  // Subtle directional highlights
@@ -284,5 +293,41 @@ export class ThreeJSMapRenderer {
 
   getCamera(): THREE.OrthographicCamera {
     return this.camera;
+  }
+
+  /**
+   * Update the political texture from a canvas element
+   * Call this after the political map is rebuilt
+   */
+  updatePoliticalTexture(canvas: HTMLCanvasElement): void {
+    if (!this.terrainUniforms || !this.terrainUniforms.politicalTexture) {
+      console.warn('Political texture uniform not initialized');
+      return;
+    }
+
+    const texture = this.terrainUniforms.politicalTexture.value;
+    texture.image = canvas;
+    texture.needsUpdate = true;
+
+    console.log('Political texture updated from canvas', {
+      width: canvas.width,
+      height: canvas.height
+    });
+  }
+
+  /**
+   * Set the political overlay opacity (0 = hidden, 1 = full)
+   */
+  setPoliticalOpacity(opacity: number): void {
+    if (this.terrainUniforms && this.terrainUniforms.politicalOpacity) {
+      this.terrainUniforms.politicalOpacity.value = Math.max(0, Math.min(1, opacity));
+    }
+  }
+
+  /**
+   * Get the current political overlay opacity
+   */
+  getPoliticalOpacity(): number {
+    return this.terrainUniforms?.politicalOpacity?.value ?? 0.65;
   }
 }

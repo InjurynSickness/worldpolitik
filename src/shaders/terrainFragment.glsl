@@ -6,9 +6,11 @@ uniform sampler2D terrainIndexTexture;  // terrain_indexed.png (0-255 index)
 uniform sampler2D atlasTexture;         // atlas0.png (4x4 grid of textures)
 uniform sampler2D colormapTexture;      // colormap_land.png (global tint)
 uniform sampler2D normalMapTexture;     // Normal map for lighting
+uniform sampler2D politicalTexture;     // Political map overlay (country colors)
 uniform vec3 lightDirection;            // Directional light
 uniform float lightIntensity;
 uniform float ambientIntensity;
+uniform float politicalOpacity;         // Political overlay opacity (0-1)
 
 varying vec2 vUv;
 varying vec3 vNormal;
@@ -18,15 +20,32 @@ const float TILES_PER_ROW = 4.0;        // 4x4 atlas grid
 const float TILE_SIZE = 1.0 / TILES_PER_ROW;
 const float TILING_FACTOR = 500.0;      // How many times to repeat textures
 
+// --- OVERLAY BLEND MODE (Photoshop/HOI4 style) ---
+// Prevents colors from crushing to black in dark areas (like Amazon forest)
+// This is how HOI4 combines terrain textures with colormaps
+float blendOverlay(float base, float blend) {
+    return base < 0.5 ? (2.0 * base * blend) : (1.0 - 2.0 * (1.0 - base) * (1.0 - blend));
+}
+
+vec3 blendOverlay(vec3 base, vec3 blend) {
+    return vec3(
+        blendOverlay(base.r, blend.r),
+        blendOverlay(base.g, blend.g),
+        blendOverlay(base.b, blend.b)
+    );
+}
+
 void main() {
     // Step 1: Read terrain type index (0-255)
     // Use .r channel, multiply by 255 to get actual index
-    float terrainIndex = texture2D(terrainIndexTexture, vUv).r * 255.0;
+    vec4 indexSample = texture2D(terrainIndexTexture, vUv);
+    float terrainIndex = indexSample.r * 255.0;
 
     // Step 2: Discard water pixels (index 0 or very low values)
     // This creates transparency where water should be, showing the blue plane below
-    // Use 0.5 threshold to handle any texture filtering artifacts
-    if (terrainIndex < 0.5) {
+    // IMPORTANT: Increased threshold from 0.5 to 1.0 to catch all water types
+    // Sometimes water might be index 0 or 1 depending on terrain system
+    if (terrainIndex < 1.0) {
         discard;
         return;
     }
@@ -50,9 +69,9 @@ void main() {
     // Step 7: Sample the global colormap (tint)
     vec4 tintColor = texture2D(colormapTexture, vUv);
 
-    // Step 8: Blend diffuse and tint (multiply blend with brightness boost)
-    // Multiply by 2.2 to compensate for double-darkening from two textures
-    vec3 baseColor = diffuseColor.rgb * tintColor.rgb * 2.2;
+    // Step 8: Blend diffuse and tint using OVERLAY BLEND (prevents Amazon void)
+    // This is HOI4's standard method - keeps detail in dark areas like forests
+    vec3 baseColor = blendOverlay(diffuseColor.rgb, tintColor.rgb);
 
     // Step 9: Apply lighting using normal map
     vec3 normalMapSample = texture2D(normalMapTexture, vUv).rgb;
@@ -64,8 +83,16 @@ void main() {
     // Combine ambient and diffuse (CRITICAL: ambient prevents pitch black shadows)
     float lighting = ambientIntensity + diffuse * lightIntensity;
 
-    // Step 10: Apply lighting (ambient ensures nothing is ever pitch black)
-    vec3 finalColor = baseColor * lighting;
+    // Step 10: Apply lighting to terrain
+    vec3 litColor = baseColor * lighting;
 
-    gl_FragColor = vec4(finalColor, 1.0);
+    // Step 11: Blend political colors on top (if enabled)
+    vec4 countryColor = texture2D(politicalTexture, vUv);
+    if (politicalOpacity > 0.0 && countryColor.a > 0.1) {
+        // Blend political color using overlay for consistent look
+        vec3 politicalBlended = blendOverlay(litColor, countryColor.rgb);
+        litColor = mix(litColor, politicalBlended, politicalOpacity);
+    }
+
+    gl_FragColor = vec4(litColor, 1.0);
 }
