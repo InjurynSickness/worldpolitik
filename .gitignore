@@ -25,14 +25,25 @@ lerna-debug.log*
 .pnpm-debug.log*
 
 # Editor directories and files
+.vscode/
 .vscode/*
-!.vscode/extensions.json
-.idea
+.idea/
+.idea/*
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-*
+*.code-workspace
+.history/
+.vs/
 
 # Vite
 .vite
