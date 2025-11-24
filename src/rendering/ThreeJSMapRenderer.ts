@@ -84,7 +84,7 @@ export class ThreeJSMapRenderer {
     const textureLoader = new THREE.TextureLoader();
 
     const [
-      terrainIndexTexture,
+      terrainCompositeTexture,
       atlasTexture,
       colormapTexture,
       heightmapTexture,
@@ -92,7 +92,8 @@ export class ThreeJSMapRenderer {
       waterNormal1,
       waterNormal2,
     ] = await Promise.all([
-      this.loadTexture(textureLoader, '/terrain_indexed.png', THREE.NearestFilter, THREE.NearestFilter, false, false),
+      // Use pre-processed final_map_composite.png (de-dithered by Python script)
+      this.loadTexture(textureLoader, '/final_map_composite.png', THREE.LinearFilter, THREE.LinearFilter, false, false),
       this.loadTexture(textureLoader, '/atlas0.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, true, true),
       this.loadTexture(textureLoader, '/colormap_land.png', THREE.LinearMipMapLinearFilter, THREE.LinearFilter, false, true),
       this.loadTexture(textureLoader, '/heightmap.png', THREE.LinearFilter, THREE.LinearFilter, false, false),
@@ -105,7 +106,7 @@ export class ThreeJSMapRenderer {
 
     // Create terrain mesh
     await this.createTerrainMesh(
-      terrainIndexTexture,
+      terrainCompositeTexture,
       atlasTexture,
       colormapTexture,
       heightmapTexture,
@@ -154,18 +155,18 @@ export class ThreeJSMapRenderer {
   }
 
   private async createTerrainMesh(
-    terrainIndexTexture: THREE.Texture,
+    terrainCompositeTexture: THREE.Texture,
     atlasTexture: THREE.Texture,
     colormapTexture: THREE.Texture,
     heightmapTexture: THREE.Texture,
     normalMapTexture: THREE.Texture
   ): Promise<void> {
-    // Create plane geometry with many segments for heightmap displacement
+    // Create plane geometry (simple, no heightmap displacement for now)
     const geometry = new THREE.PlaneGeometry(
       this.mapWidth,
       this.mapHeight,
-      1000,
-      1000
+      1,
+      1
     );
 
     // Create a blank political texture (will be updated later from canvas)
@@ -175,36 +176,26 @@ export class ThreeJSMapRenderer {
     politicalTexture.wrapS = THREE.ClampToEdgeWrapping;
     politicalTexture.wrapT = THREE.ClampToEdgeWrapping;
 
-    // Create shader material uniforms
-    this.terrainUniforms = {
-      terrainIndexTexture: { value: terrainIndexTexture },
-      atlasTexture: { value: atlasTexture },
-      colormapTexture: { value: colormapTexture },
-      heightmapTexture: { value: heightmapTexture },
-      normalMapTexture: { value: normalMapTexture },
-      politicalTexture: { value: politicalTexture },
-      politicalOpacity: { value: 0.65 }, // Default 65% political overlay
-      heightScale: { value: 10.0 }, // Adjust for desired terrain height
-      lightDirection: { value: new THREE.Vector3(-0.5, -0.3, 1.0).normalize() },
-      lightIntensity: { value: 0.35 },  // Subtle directional highlights
-      ambientIntensity: { value: 0.75 }, // High ambient prevents dark shadows (HOI4 style)
-    };
-
-    const material = new THREE.ShaderMaterial({
-      uniforms: this.terrainUniforms,
-      vertexShader: terrainVertexShader,
-      fragmentShader: terrainFragmentShader,
+    // SIMPLIFIED: Use pre-rendered composite directly instead of shader-based terrain
+    // The Python script already did all the heavy lifting (de-dithering, water, lighting)
+    const material = new THREE.MeshBasicMaterial({
+      map: terrainCompositeTexture,
+      transparent: false,
       side: THREE.FrontSide,
-      transparent: true,      // CRITICAL: Enable transparency for water cutouts
-      depthWrite: true,
-      depthTest: true,
     });
 
     this.terrainMesh = new THREE.Mesh(geometry, material);
     this.terrainMesh.position.set(0, 0, 0);
     this.scene.add(this.terrainMesh);
 
-    console.log('Terrain mesh created');
+    // Store uniforms for political overlay (we'll add this back as a separate mesh)
+    this.terrainUniforms = {
+      terrainCompositeTexture: { value: terrainCompositeTexture },
+      politicalTexture: { value: politicalTexture },
+      politicalOpacity: { value: 0.65 },
+    };
+
+    console.log('Terrain mesh created (using pre-processed composite)');
   }
 
   private async createWaterMesh(waterNormal1: THREE.Texture, waterNormal2: THREE.Texture): Promise<void> {
