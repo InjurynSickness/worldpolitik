@@ -59,10 +59,13 @@ export class ThreeJSMapRenderer {
     this.scene.add(this.mapGroup);
 
     // 3. Setup Orthographic Camera (2D view)
+    // Camera views from (-width/2, -height/2) to (width/2, height/2) centered on origin
+    const halfWidth = container.clientWidth / 2;
+    const halfHeight = container.clientHeight / 2;
     this.camera = new THREE.OrthographicCamera(
-      0, container.clientWidth,
-      0, container.clientHeight,
-      -100, 100
+      -halfWidth, halfWidth,      // left, right
+      halfHeight, -halfHeight,     // top, bottom (inverted for Canvas 2D coordinate system)
+      -100, 100                    // near, far
     );
     this.camera.position.z = 10;
 
@@ -84,9 +87,8 @@ export class ThreeJSMapRenderer {
     console.log('[ThreeJSMapRenderer v2.0] Setting up map layers...');
 
     // Create plane geometry (reused for all layers)
+    // Geometry is centered at origin (0, 0)
     const geometry = new THREE.PlaneGeometry(this.mapWidth, this.mapHeight);
-    // Translate so (0,0) is top-left corner (Canvas 2D style)
-    geometry.translate(this.mapWidth / 2, this.mapHeight / 2, 0);
 
     // Layer 0: Water Background (z = -1)
     this.waterMesh = this.createLayer(waterCanvas, geometry, -1, 1.0, false);
@@ -274,10 +276,12 @@ export class ThreeJSMapRenderer {
    */
   public resize(width: number, height: number): void {
     this.renderer.setSize(width, height);
-    this.camera.left = 0;
-    this.camera.right = width;
-    this.camera.top = 0;
-    this.camera.bottom = height;
+    const halfWidth = width / 2;
+    const halfHeight = height / 2;
+    this.camera.left = -halfWidth;
+    this.camera.right = halfWidth;
+    this.camera.top = halfHeight;
+    this.camera.bottom = -halfHeight;
     this.camera.updateProjectionMatrix();
     this.renderFrame();
   }
@@ -288,7 +292,9 @@ export class ThreeJSMapRenderer {
    */
   public render(cameraX: number, cameraY: number, zoom: number): void {
     // Apply camera transform to the map group
-    this.mapGroup.position.set(cameraX, cameraY, 0);
+    // Canvas 2D translate(x, y) moves the origin, which visually moves content by (-x, -y)
+    // Three.js Y-axis is inverted (Y+ is up), Canvas 2D Y+ is down
+    this.mapGroup.position.set(-cameraX, cameraY, 0);
     this.mapGroup.scale.set(zoom, zoom, 1);
 
     this.renderFrame();
