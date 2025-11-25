@@ -153,50 +153,113 @@ export class ProvinceMap {
         window.addEventListener('resize', () => this.handleResize());
     }
 
-    private async loadAssets(): Promise<void> {
+    private loadAssets(): void {
         logger.time('ProvinceMap', 'Total asset loading');
-        logger.info('ProvinceMap', '🚀 Starting asset loading with Three.js...');
+        logger.info('ProvinceMap', '🚀 Starting asset loading (Canvas 2D → Three.js v2.0)...');
 
-        try {
-            // Load provinces.png for province picking (still needed for click detection)
-            logger.info('ProvinceMap', '📥 Loading provinces.png for province picking...');
-            await this.loadImage(this.provinceImage, './provinces.png');
-            logger.info('ProvinceMap', '✓ provinces.png loaded');
+        let assetsLoaded = 0;
+        const totalAssets = 3; // terrain, provinces, rivers
 
-            // Draw to hidden canvas for province picking
-            this.canvasManager.hiddenCtx.drawImage(this.provinceImage, 0, 0);
-            logger.info('ProvinceMap', '✓ Province image drawn to hidden canvas');
+        const onAssetLoad = () => {
+            assetsLoaded++;
+            logger.info('ProvinceMap', `Asset loaded (${assetsLoaded}/${totalAssets})`);
 
-            // Initialize Three.js renderer (replaces old terrain processing)
-            logger.info('ProvinceMap', '🎮 Initializing Three.js renderer...');
-            if (this.threeJSRenderer) {
-                await this.threeJSRenderer.initialize();
-                logger.info('ProvinceMap', '✅ Three.js renderer initialized');
+            if (assetsLoaded === totalAssets) {
+                logger.info('ProvinceMap', '✅ All assets loaded');
+
+                // Draw provinces to hidden canvas for pixel picking
+                this.canvasManager.hiddenCtx.drawImage(this.provinceImage, 0, 0);
+                logger.info('ProvinceMap', '✓ Province image drawn to hidden canvas');
+
+                this.mapReady = true;
+
+                // Process terrain (mask out water using provinces)
+                logger.info('ProvinceMap', '🗻 Processing terrain...');
+                this.processTerrainImage();
+
+                // Build political map on Canvas 2D
+                logger.info('ProvinceMap', '🗺️ Building political map...');
+                this.buildPoliticalMap();
+
+                // Build borders
+                logger.info('ProvinceMap', '🔲 Building borders...');
+                this.generateCountryBorders();
+                this.buildBorderMap();
+
+                // Draw initial overlays
+                this.drawOverlays();
+
+                // Initialize Three.js renderer with Canvas 2D canvases
+                logger.info('ProvinceMap', '🎮 Initializing Three.js v2.0 renderer with Canvas layers...');
+                if (this.threeJSRenderer) {
+                    this.threeJSRenderer.initMapLayers(
+                        this.canvasManager.waterTextureCanvas,
+                        this.canvasManager.processedTerrainCanvas,
+                        this.canvasManager.politicalCanvas,
+                        this.canvasManager.recoloredRiversCanvas,
+                        this.canvasManager.borderCanvas,
+                        this.canvasManager.overlayCanvas
+                    );
+                    logger.info('ProvinceMap', '✅ Three.js layers initialized');
+
+                    // Start animation loop for smooth camera movement
+                    this.threeJSRenderer.startAnimationLoop(() => this.cameraController.camera);
+                }
+
+                // First render
+                this.render();
+
+                logger.timeEnd('ProvinceMap', 'Total asset loading');
+                logger.info('ProvinceMap', '✅✅✅ Map fully ready with Three.js v2.0 rendering');
+
+                // Notify ready
+                if (this.onMapReady) {
+                    this.onMapReady();
+                }
             }
+        };
 
-            this.mapReady = true;
-
-            // Build political map (still needed for data, but not for Canvas 2D rendering)
-            logger.info('ProvinceMap', '🗺️ Building political map data...');
-            this.buildPoliticalMap();
-
-            // Start Three.js animation loop
-            if (this.threeJSRenderer) {
-                logger.info('ProvinceMap', '🎬 Starting Three.js animation loop...');
-                this.threeJSRenderer.startAnimationLoop(() => this.cameraController.camera);
-            }
-
-            logger.timeEnd('ProvinceMap', 'Total asset loading');
-            logger.info('ProvinceMap', '✅✅✅ Map fully ready with Three.js rendering');
-
-            // Notify map is ready
-            if (this.onMapReady) {
-                this.onMapReady();
-            }
-        } catch (error) {
-            logger.error('ProvinceMap', '❌ FAILED to load assets', error);
+        // Load terrain (using pre-processed final_map_composite.png)
+        logger.info('ProvinceMap', '📥 Loading final_map_composite.png...');
+        this.terrainImage.onload = () => {
+            logger.info('ProvinceMap', '✓ Terrain loaded');
+            onAssetLoad();
+        };
+        this.terrainImage.onerror = (e) => {
+            logger.error('ProvinceMap', '❌ FAILED to load terrain', e);
             logger.showDebugPanel();
-        }
+        };
+        this.terrainImage.src = './final_map_composite.png';
+
+        // Load provinces
+        logger.info('ProvinceMap', '📥 Loading provinces.png...');
+        this.provinceImage.onload = () => {
+            logger.info('ProvinceMap', '✓ Provinces loaded');
+            onAssetLoad();
+        };
+        this.provinceImage.onerror = (e) => {
+            logger.error('ProvinceMap', '❌ FAILED to load provinces', e);
+            logger.showDebugPanel();
+        };
+        this.provinceImage.src = './provinces.png';
+
+        // Load and recolor rivers
+        logger.info('ProvinceMap', '📥 Loading rivers.png...');
+        this.riversImage.onload = () => {
+            logger.info('ProvinceMap', '🎨 Recoloring rivers...');
+            this.canvasManager.recoloredRiversCtx.drawImage(this.riversImage, 0, 0);
+            this.canvasManager.recoloredRiversCtx.globalCompositeOperation = 'source-in';
+            this.canvasManager.recoloredRiversCtx.fillStyle = '#283a4a';
+            this.canvasManager.recoloredRiversCtx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+            this.canvasManager.recoloredRiversCtx.globalCompositeOperation = 'source-over';
+            logger.info('ProvinceMap', '✓ Rivers recolored');
+            onAssetLoad();
+        };
+        this.riversImage.onerror = (e) => {
+            logger.error('ProvinceMap', '❌ FAILED to load rivers', e);
+            logger.showDebugPanel();
+        };
+        this.riversImage.src = './rivers.png';
     }
 
     private loadImage(image: HTMLImageElement, src: string): Promise<void> {
@@ -587,6 +650,11 @@ export class ProvinceMap {
             this.provinceOwnerMap,
             this.cameraController.camera.zoom
         );
+
+        // Push overlay canvas to Three.js
+        if (this.threeJSRenderer && this.mapReady) {
+            this.threeJSRenderer.updateOverlaysTexture(this.canvasManager.overlayCanvas);
+        }
     }
 
     // Generate border pixels for a specific province (on-demand, cached)
@@ -658,6 +726,15 @@ export class ProvinceMap {
             this.canvasManager.visibleCanvas.height
         );
         this.cameraController.constrainCamera();
+
+        // Notify Three.js renderer of resize
+        if (this.threeJSRenderer) {
+            this.threeJSRenderer.resize(
+                this.container.clientWidth,
+                this.container.clientHeight
+            );
+        }
+
         this.requestRender();
     }
 
@@ -685,6 +762,12 @@ export class ProvinceMap {
             (x, y) => this.getProvinceAt(x, y)
         );
         this.bordersReady = true;
+
+        // Push borders canvas to Three.js
+        if (this.threeJSRenderer) {
+            this.threeJSRenderer.updateBordersTexture(this.canvasManager.borderCanvas);
+        }
+
         this.render();
     }
 
@@ -823,48 +906,47 @@ export class ProvinceMap {
      * Toggle political colors overlay (0 = terrain only, 1 = full political colors)
      */
     public togglePoliticalColors(): void {
-        const currentOpacity = this.mapRenderer.getPoliticalOpacity();
-        // Toggle between 0 (terrain only) and 0.6 (political overlay)
-        this.mapRenderer.setPoliticalOpacity(currentOpacity > 0 ? 0.0 : 0.6);
-        this.requestRender();
+        if (!this.threeJSRenderer) return;
+        const currentOpacity = this.threeJSRenderer.getPoliticalOpacity();
+        // Toggle between 0 (terrain only) and 0.65 (political overlay)
+        this.threeJSRenderer.setPoliticalOpacity(currentOpacity > 0 ? 0.0 : 0.65);
     }
 
     /**
      * Set political colors opacity (0 = terrain only, 1 = full political colors)
      */
     public setPoliticalOpacity(opacity: number): void {
-        // Update both old renderer (for UI overlays) and Three.js renderer
-        this.mapRenderer.setPoliticalOpacity(opacity);
         if (this.threeJSRenderer) {
             this.threeJSRenderer.setPoliticalOpacity(opacity);
         }
-        this.requestRender();
     }
 
     /**
      * Get current political colors opacity
      */
     public getPoliticalOpacity(): number {
-        // Return from Three.js renderer if available
         if (this.threeJSRenderer) {
             return this.threeJSRenderer.getPoliticalOpacity();
         }
-        return this.mapRenderer.getPoliticalOpacity();
+        return 0.65;
     }
 
     /**
      * Set whether country borders should be visible
      */
     public setBordersVisible(visible: boolean): void {
-        this.mapRenderer.setBordersVisible(visible);
-        this.requestRender();
+        if (this.threeJSRenderer) {
+            this.threeJSRenderer.setBordersVisible(visible);
+        }
     }
 
     /**
      * Get whether country borders are currently visible
      */
     public getBordersVisible(): boolean {
-        return this.mapRenderer.getBordersVisible();
+        // For now, borders are always visible in v2.0
+        // Can be enhanced later if needed
+        return true;
     }
 
     public async calculateLabels(): Promise<void> {
