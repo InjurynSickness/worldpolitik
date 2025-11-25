@@ -88,6 +88,8 @@ export class ThreeJSMapRenderer {
     overlaysCanvas: HTMLCanvasElement
   ): void {
     console.log('[ThreeJSMapRenderer v2.0] Setting up map layers...');
+    console.log(`[ThreeJSMapRenderer v2.0] Map dimensions: ${this.mapWidth}x${this.mapHeight}`);
+    console.log(`[ThreeJSMapRenderer v2.0] Camera frustum: left=${this.camera.left}, right=${this.camera.right}, top=${this.camera.top}, bottom=${this.camera.bottom}`);
 
     // Create plane geometry (reused for all layers)
     // Geometry is centered at origin (0, 0)
@@ -297,7 +299,8 @@ export class ThreeJSMapRenderer {
     // Apply camera transform to the map group
     // Canvas 2D translate(x, y) moves the origin, which visually moves content by (-x, -y)
     // Three.js Y-axis is inverted (Y+ is up), Canvas 2D Y+ is down
-    this.mapGroup.position.set(-cameraX, cameraY, 0);
+    // Both X and Y need to be inverted to match Canvas 2D translate semantics
+    this.mapGroup.position.set(-cameraX, -cameraY, 0);
     this.mapGroup.scale.set(zoom, zoom, 1);
 
     this.renderFrame();
@@ -354,9 +357,18 @@ export class ThreeJSMapRenderer {
     // Stop any existing animation loop first
     this.stopAnimationLoop();
 
+    let frameCount = 0;
     const animate = () => {
       this.animationFrameId = requestAnimationFrame(animate);
       const cam = getCamera();
+
+      // Debug: Log first few frames
+      if (frameCount < 3) {
+        console.log(`[ThreeJSMapRenderer v2.0] Frame ${frameCount}: camera=(${cam.x.toFixed(2)}, ${cam.y.toFixed(2)}, zoom=${cam.zoom.toFixed(4)})`);
+        console.log(`[ThreeJSMapRenderer v2.0] MapGroup position=(${(-cam.x).toFixed(2)}, ${(-cam.y).toFixed(2)}), scale=${cam.zoom.toFixed(4)}`);
+        frameCount++;
+      }
+
       this.render(cam.x, cam.y, cam.zoom);
     };
     animate();
