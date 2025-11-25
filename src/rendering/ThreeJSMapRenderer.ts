@@ -31,6 +31,9 @@ export class ThreeJSMapRenderer {
   private mapWidth: number;
   private mapHeight: number;
 
+  // Animation loop control
+  private animationFrameId: number | null = null;
+
   constructor(container: HTMLElement, mapWidth: number, mapHeight: number) {
     console.log('[ThreeJSMapRenderer v2.0] Initializing...');
 
@@ -313,6 +316,9 @@ export class ThreeJSMapRenderer {
   public dispose(): void {
     console.log('[ThreeJSMapRenderer v2.0] Disposing...');
 
+    // Stop animation loop first
+    this.stopAnimationLoop();
+
     // Dispose geometries and materials
     this.mapGroup.children.forEach(child => {
       if (child instanceof THREE.Mesh) {
@@ -329,7 +335,9 @@ export class ThreeJSMapRenderer {
       if (tex) tex.dispose();
     });
 
+    // Dispose renderer and release WebGL context
     this.renderer.dispose();
+    this.renderer.forceContextLoss();
   }
 
   /**
@@ -343,11 +351,26 @@ export class ThreeJSMapRenderer {
    * Start animation loop (for smooth animations)
    */
   public startAnimationLoop(getCamera: () => { x: number; y: number; zoom: number }): void {
+    // Stop any existing animation loop first
+    this.stopAnimationLoop();
+
     const animate = () => {
-      requestAnimationFrame(animate);
+      this.animationFrameId = requestAnimationFrame(animate);
       const cam = getCamera();
       this.render(cam.x, cam.y, cam.zoom);
     };
     animate();
+    console.log('[ThreeJSMapRenderer v2.0] Animation loop started');
+  }
+
+  /**
+   * Stop animation loop
+   */
+  public stopAnimationLoop(): void {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+      console.log('[ThreeJSMapRenderer v2.0] Animation loop stopped');
+    }
   }
 }
